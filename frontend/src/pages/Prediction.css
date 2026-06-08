@@ -1,0 +1,110 @@
+/* Full Page Background */
+.page {
+  position: relative;
+  min-height: 100vh;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Dark overlay */
+.overlay {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  top: 0;
+  left: 0;
+}
+
+/* Content area */
+.content {
+  position: relative;
+  z-index: 2;
+  color: white;
+  text-align: center;
+}
+
+/* Glass form effect */
+.form-container {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 40px;
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  width: 90%;
+  max-height: 500px;
+  max-width: 420px; /* limit on large screens */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+}
+.form-container h2{
+  margin-bottom: 10px;
+}
+/* Inputs */
+.form-container input {
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  outline: none;
+  font-size: 14px;
+}
+
+/* Button */
+.form-container button {
+  padding: 10px 50px;
+  border: none;
+  border-radius: 8px;
+  background-color: #00c6ff;
+  color: white;
+  font-weight: bold;
+  font-size: large;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.form-container button:hover {
+  background-color: #0072ff;
+}
+
+/* Result */
+.result {
+  margin-top: 15px;
+  color: #00ffcc;
+  font-size: 1.1rem;
+  animation: fadeIn 0.5s ease;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 400px) {
+  .form-container {
+    width: 90%;
+    padding: 30px 20px;
+  }
+
+  .form-container input, .form-container button {
+    font-size: 16px;
+  }
+}
+
+/* Input focus state */
+.form-container input:focus {
+  box-shadow: 0 0 0 2px rgba(0, 198, 255, 0.5);
+}
+
+/* Placeholder style */
+.form-container input::placeholder {
+  color: rgba(255,255,255,0.7);
+}
+

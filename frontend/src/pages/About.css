@@ -1,0 +1,43 @@
+/* About page styles */
+.about-page .content {
+  max-width: 980px;
+  margin: auto;
+  padding: 49px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 14px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+  text-align: left;
+}
+
+.about-page .content h2 {
+  font-size: 2rem;
+  margin-bottom: 12px;
+  color: #ffffff;
+}
+
+.about-page .accent {
+  display: inline-block;
+  margin-bottom: 18px;
+  color: #00c6ff;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.about-page .content p {
+  color: rgba(255,255,255,0.9);
+  line-height: 1.75;
+  font-size: 1rem;
+}
+
+/* Small screens */
+@media (max-width: 700px) {
+  .about-page .content {
+    padding: 28px;
+    margin: 20px;
+  }
+
+  .about-page .content h2 {
+    font-size: 1.5rem;
+  }
+}

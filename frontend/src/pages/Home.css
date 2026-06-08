@@ -1,0 +1,61 @@
+.home-page {
+  height: 100vh;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.overlay {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.home-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 80px;
+}
+
+/* LEFT SIDE */
+.left-section {
+  max-width: 50%;
+  text-align: left;
+}
+
+.left-section h1 {
+  font-size: 60px;
+  margin-bottom: 20px;
+}
+
+.left-section p {
+  font-size: 20px;
+  line-height: 1.6;
+}
+
+/* RIGHT SIDE */
+.right-section {
+  width: 40%;
+  display: flex;
+  justify-content: center;
+}
+
+.right-section img {
+  width: 300px;
+  animation: rotateImage 8s linear infinite;
+}
+
+/* Rotation Animation */
+@keyframes rotateImage {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

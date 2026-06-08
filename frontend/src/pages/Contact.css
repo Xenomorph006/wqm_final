@@ -1,0 +1,151 @@
+.page {
+  position: relative;
+  min-height: 100vh;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Dark overlay */
+.overlay {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  top: 0;
+  left: 0;
+}
+
+/* Content area */
+.content {
+  position: relative;
+  z-index: 2;
+  color: white;
+  text-align: center;
+}
+
+/* Glass form effect */
+.form-container {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 40px;
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  width: 90%;
+  max-height: 500px;
+  max-width: 420px; /* limit on large screens */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+}
+.form-container h2{
+  margin-bottom: 10px;
+}
+/* Inputs */
+.form-container input,
+.form-container textarea {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  outline: none;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  transition: box-shadow 0.2s ease, transform 0.12s ease;
+}
+
+.form-container textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.form-container input:focus,
+.form-container textarea:focus {
+  box-shadow: 0 0 0 3px rgba(0, 198, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Button */
+.form-container button {
+  padding: 10px 50px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(45deg, #00c6ff, #0072ff);
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.form-container button:hover {
+  background-color: #0072ff;
+}
+.form-container textarea {
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  outline: none;
+  font-size: 14px;
+  resize: vertical;
+  width: 100%;
+  height: 120px;
+}
+/* Result */
+.result {
+  margin-top: 15px;
+  color: #00ffcc;
+  font-size: 1.1rem;
+  animation: fadeIn 0.5s ease;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 400px) {
+  .form-container {
+    width: 90%;
+    padding: 30px 20px;
+  }
+
+  .form-container input, .form-container button, .form-container textarea {
+    font-size: 16px;
+  }
+}
+
+/* Input focus state */
+.form-container input:focus {
+  /* kept for specificity fallback */
+  box-shadow: 0 0 0 2px rgba(0, 198, 255, 0.5);
+}
+
+/* Placeholder styles (cross-browser) */
+.form-container input::placeholder,
+.form-container textarea::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+  opacity: 1; /* ensure visibility */
+}
+.form-container input:-ms-input-placeholder,
+.form-container textarea:-ms-input-placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+.form-container input::-ms-input-placeholder,
+.form-container textarea::-ms-input-placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+.form-container input::-webkit-input-placeholder,
+.form-container textarea::-webkit-input-placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+.form-container input::-moz-placeholder,
+.form-container textarea::-moz-placeholder {
+  color: rgba(255, 255, 255, 0.7);
+  opacity: 1;
+}
