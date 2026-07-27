@@ -1,0 +1,25 @@
+NFLNN(
+  (membership): GaussianMembership()
+  (rules): FuzzyRuleLayer(
+    (flatten): Flatten(start_dim=1, end_dim=-1)
+    (rule_generator): Sequential(
+      (0): Linear(in_features=12, out_features=32, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=32, out_features=32, bias=True)
+      (3): ReLU()
+    )
+  )
+  (liquid): LiquidCell(
+    (input_layer): Linear(in_features=32, out_features=32, bias=True)
+    (hidden_layer): Linear(in_features=32, out_features=32, bias=True)
+    (tau_layer): Linear(in_features=32, out_features=32, bias=True)
+    (activation): Tanh()
+  )
+  (classifier): Sequential(
+    (0): Linear(in_features=32, out_features=16, bias=True)
+    (1): ReLU()
+    (2): Dropout(p=0.3, inplace=False)
+    (3): Linear(in_features=16, out_features=1, bias=True)
+    (4): Sigmoid()
+  )
+)
