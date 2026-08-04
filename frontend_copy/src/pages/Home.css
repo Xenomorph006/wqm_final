@@ -1,0 +1,222 @@
+.home-page {
+  min-height: 100vh;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-content {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  padding: 160px 80px 60px;
+  flex-wrap: wrap;
+}
+
+/* LEFT */
+.left-section {
+  max-width: 560px;
+  text-align: left;
+}
+
+.eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  border: 1px solid var(--border-glass-strong);
+  padding: 6px 12px;
+  border-radius: 999px;
+  margin-bottom: 20px;
+}
+
+.left-section h1 {
+  font-family: var(--font-display);
+  font-size: clamp(38px, 5vw, 58px);
+  line-height: 1.12;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+}
+
+.grad-text {
+  background: linear-gradient(120deg, var(--accent-cyan), var(--accent-violet));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.left-section p {
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 30px;
+  flex-wrap: wrap;
+}
+
+/* RIGHT — signature sonar element */
+.right-section {
+  width: 340px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  perspective: 900px;
+}
+
+.sonar-ring {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  border: 1px solid var(--border-glass);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(31, 216, 255, 0.08), transparent 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotateX(8deg);
+  animation: floatY 6s ease-in-out infinite;
+}
+
+.sonar-ring::before,
+.sonar-ring::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(34, 211, 238, 0.14);
+}
+
+.sonar-ring::before {
+  inset: 30px;
+}
+
+.sonar-ring::after {
+  inset: 70px;
+}
+
+.sonar-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(31, 216, 255, 0.5), transparent 35%);
+  animation: rotateSweep 4s linear infinite;
+  mix-blend-mode: screen;
+}
+
+.sonar-core {
+  position: relative;
+  z-index: 2;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-glass-strong);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 50px rgba(31, 216, 255, 0.2), inset 0 0 20px rgba(31, 216, 255, 0.08);
+}
+
+.sonar-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--accent-cyan);
+}
+
+.sonar-sub {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+@keyframes rotateSweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes floatY {
+  0%, 100% { transform: rotateX(8deg) translateY(0); }
+  50% { transform: rotateX(8deg) translateY(-14px); }
+}
+
+/* QUICK LINKS */
+.quick-links {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  padding: 0 80px 80px;
+}
+
+.quick-card {
+  position: relative;
+  text-decoration: none;
+  color: var(--text-primary);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 26px;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+  transform-style: preserve-3d;
+}
+
+.quick-card:hover {
+  transform: translateY(-8px) rotateX(4deg);
+  border-color: var(--border-glass-strong);
+  box-shadow: var(--shadow-glow), var(--shadow-deep);
+}
+
+.quick-card h3 {
+  font-family: var(--font-display);
+  font-size: 19px;
+  margin-bottom: 8px;
+}
+
+.quick-card p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.quick-arrow {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--accent-cyan);
+  transition: transform 0.25s ease;
+}
+
+.quick-card:hover .quick-arrow {
+  transform: translateX(6px);
+}
+
+@media (max-width: 900px) {
+  .home-content {
+    padding: 150px 30px 40px;
+    justify-content: center;
+    text-align: center;
+  }
+  .left-section {
+    text-align: center;
+  }
+  .hero-actions {
+    justify-content: center;
+  }
+  .quick-links {
+    padding: 0 30px 60px;
+  }
+}

@@ -1,0 +1,106 @@
+.live-chart {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px 18px;
+  backdrop-filter: blur(14px);
+}
+
+.live-chart-head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.live-chart-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--text-secondary);
+  letter-spacing: 0.03em;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.live-dot.on {
+  background: var(--success);
+  box-shadow: 0 0 8px 2px rgba(22, 224, 160, 0.6);
+  animation: navPulse 1.8s ease-in-out infinite;
+}
+
+.live-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.legend-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.legend-chip:hover {
+  border-color: var(--chip-color);
+  color: var(--text-primary);
+}
+
+.legend-chip.off {
+  opacity: 0.35;
+}
+
+.chip-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chip-color);
+}
+
+.chip-value {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.live-chart-svg {
+  width: 100%;
+  height: 220px;
+  display: block;
+}
+
+.chart-line {
+  transition: d 0.6s ease;
+}
+
+.sweep-line {
+  opacity: 0.7;
+  animation: sweepFade 2.4s ease-in-out infinite;
+}
+
+@keyframes sweepFade {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.8; }
+}
+
+.chart-empty-note {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
