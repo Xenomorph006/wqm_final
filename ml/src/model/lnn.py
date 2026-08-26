@@ -138,12 +138,21 @@ class LiquidNeuralNetwork(nn.Module):
         )
 
         # ----------------------------------------------------
+        # Future-step embedding
+        # ----------------------------------------------------
+
+        self.future_embedding = nn.Embedding(
+            prediction_horizon,
+            hidden_size,
+        )
+
+        # ----------------------------------------------------
         # Prediction head
         # ----------------------------------------------------
 
         self.prediction_head = nn.Sequential(
             nn.Linear(
-                hidden_size,
+                hidden_size * 2,
                 hidden_size,
             ),
             nn.Tanh(),
@@ -154,12 +163,12 @@ class LiquidNeuralNetwork(nn.Module):
         )
 
         # ----------------------------------------------------
-        # Confidence head
+        # Confidence / uncertainty head
         # ----------------------------------------------------
 
         self.confidence_head = nn.Sequential(
             nn.Linear(
-                hidden_size,
+                hidden_size * 2,
                 hidden_size,
             ),
             nn.Tanh(),
@@ -221,34 +230,81 @@ class LiquidNeuralNetwork(nn.Module):
         # ----------------------------------------------------
 
         predictions = []
-
         confidences = []
 
         current_hidden = hidden
 
-        for _ in range(
+        for future_step in range(
             self.prediction_horizon
         ):
 
-            prediction = (
-                self.prediction_head(
-                    current_hidden
+            # -----------------------------------------------
+            # Future temporal embedding
+            # -----------------------------------------------
+
+            step_index = torch.tensor(
+                future_step,
+                device=device,
+            )
+
+            step_embedding = (
+                self.future_embedding(
+                    step_index
                 )
             )
 
-            # Softplus guarantees positive
-            # uncertainty.
+            step_embedding = (
+                step_embedding
+                .unsqueeze(0)
+                .expand(
+                    batch_size,
+                    -1,
+                )
+            )
+
+            # -----------------------------------------------
+            # Combine state + future position
+            # -----------------------------------------------
+
+            prediction_context = torch.cat(
+                [
+                    current_hidden,
+                    step_embedding,
+                ],
+                dim=-1,
+            )
+
+            # -----------------------------------------------
+            # Prediction
+            # -----------------------------------------------
+
+            prediction = (
+                self.prediction_head(
+                    prediction_context
+                )
+            )
+
+            # -----------------------------------------------
+            # Uncertainty
+            # -----------------------------------------------
+
+            raw_uncertainty = (
+                self.confidence_head(
+                    prediction_context
+                )
+            )
+
             uncertainty = (
                 torch.nn.functional.softplus(
-                    self.confidence_head(
-                        current_hidden
-                    )
+                    raw_uncertainty
                 )
                 + 1e-6
             )
 
-            # Convert uncertainty into
-            # bounded confidence.
+            # -----------------------------------------------
+            # Confidence
+            # -----------------------------------------------
+
             confidence = (
                 1.0
                 / (1.0 + uncertainty)
@@ -262,13 +318,15 @@ class LiquidNeuralNetwork(nn.Module):
                 confidence
             )
 
-            # ------------------------------------------------
-            # Autoregressive hidden-state update
-            # ------------------------------------------------
+            # -----------------------------------------------
+            # Autoregressive update
+            # -----------------------------------------------
 
-            projected_prediction = torch.tanh(
-                self.input_layer(
-                    prediction
+            projected_prediction = (
+                torch.tanh(
+                    self.input_layer(
+                        prediction
+                    )
                 )
             )
 
