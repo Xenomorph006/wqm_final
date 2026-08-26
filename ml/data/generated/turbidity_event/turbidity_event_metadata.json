@@ -1,0 +1,15 @@
+{
+    "seed": 42,
+    "sampling_interval_seconds": 5,
+    "num_samples": 17281,
+    "parameters": [
+        "pH",
+        "turbidity",
+        "temperature",
+        "DO",
+        "TDS"
+    ],
+    "start_time": "2026-01-01 00:00:00",
+    "end_time": "2026-01-02 00:00:00",
+    "scenario": "turbidity_event"
+}
