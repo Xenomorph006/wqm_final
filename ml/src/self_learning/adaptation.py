@@ -371,6 +371,39 @@ class AdaptationController:
     # STATUS
     # ==================================================
 
+    def get_debug_status(self) -> dict:
+
+            current_samples = len(
+                self.replay_buffer
+            )
+
+            new_samples = (
+                current_samples
+                - self.last_adaptation_sample_count
+            )
+
+            return {
+
+                "current_samples":
+                    current_samples,
+
+                "minimum_samples":
+                    self.minimum_samples,
+
+                "last_adaptation_sample_count":
+                    self.last_adaptation_sample_count,
+
+                "new_samples":
+                    new_samples,
+
+                "adaptation_interval":
+                    self.adaptation_interval,
+
+                "is_ready":
+                    self.is_ready(),
+
+            }
+    
     def get_status(self) -> dict:
 
         return {
@@ -388,4 +421,7 @@ class AdaptationController:
 
             "last_result":
                 self.last_result,
+
+            "debug":
+                self.get_debug_status(),
         }

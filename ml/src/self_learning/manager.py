@@ -52,11 +52,13 @@ class SelfLearningManager:
         buffer_capacity: int = 10000,
         learning_rate: float = 1e-5,
         adaptation_batch_size: int = 32,
-        minimum_samples: int = 64,
-        adaptation_interval: int = 60,
-        model_store_directory: str = "models/adapted",
-        model_store_filename: str = "lnn_latest.pt",
-        ) -> None:
+        minimum_samples: int = 32,
+        adaptation_interval: int = 10,
+    ) -> None:
+
+        # ==================================================
+        # BASIC CONFIGURATION
+        # ==================================================
 
         self.input_window = input_window
 
@@ -70,6 +72,22 @@ class SelfLearningManager:
             "cuda"
             if torch.cuda.is_available()
             else "cpu"
+        )
+
+        # ==================================================
+        # PROJECT ROOT
+        #
+        # manager.py:
+        #
+        # ML/src/self-learning/manager.py
+        #
+        # parents[0] = self-learning
+        # parents[1] = src
+        # parents[2] = ML
+        # ==================================================
+
+        self.project_root = (
+            Path(__file__).resolve().parents[2]
         )
 
         # ==================================================
@@ -88,21 +106,29 @@ class SelfLearningManager:
         )
 
         # ==================================================
+        # MODEL STORE PATH
+        # ==================================================
+
+        adapted_model_directory = (
+            self.project_root
+            / "models"
+            / "adapted"
+        )
+
+        # ==================================================
         # MODEL STORE
         # ==================================================
 
         self.model_store = ModelStore(
-            directory=model_store_directory,
-            filename=model_store_filename,
+            directory=str(
+                adapted_model_directory
+            ),
+            filename="lnn_latest.pt",
         )
 
         # ==================================================
-        # LOAD PREVIOUSLY ADAPTED MODEL
+        # LOAD SELF-LEARNING CHECKPOINT
         # ==================================================
-
-       # ==================================================
-        # LOAD PREVIOUS SELF-LEARNING CHECKPOINT
-    # ==================================================
 
         self.loaded_checkpoint = (
             self.model_store.load(
@@ -139,13 +165,12 @@ class SelfLearningManager:
         # ADAPTATION CONTROLLER
         # ==================================================
 
-        self.controller = (
-            AdaptationController(
-                replay_buffer=self.replay_buffer,
-                learner=self.learner,
-                batch_size=adaptation_batch_size,
-                minimum_samples=minimum_samples,
-            )
+        self.controller = AdaptationController(
+            replay_buffer=self.replay_buffer,
+            learner=self.learner,
+            batch_size=adaptation_batch_size,
+            minimum_samples=minimum_samples,
+            adaptation_interval=adaptation_interval,
         )
 
         # ==================================================
@@ -154,26 +179,53 @@ class SelfLearningManager:
 
         if self.loaded_checkpoint is not None:
 
-            self.controller.load_state(
-                self.loaded_checkpoint.get(
-                "adaptation_state",
-                {},
-                )
-            )
+            # ----------------------------------------------
+            # Restore learner state
+            # ----------------------------------------------
 
             self.learner.load_state(
                 self.loaded_checkpoint.get(
-                "learner_state",
-                {},
+                    "learner_state",
+                    {},
                 )
             )
 
+            # ----------------------------------------------
+            # Restore controller statistics
+            # ----------------------------------------------
+
+            self.controller.load_state(
+                self.loaded_checkpoint.get(
+                    "adaptation_state",
+                    {},
+                )
+            )
+
+            # ----------------------------------------------
+            # IMPORTANT
+            #
+            # Replay buffer is NOT persistent.
+            #
+            # After restart:
+            #
+            # Buffer = 0
+            #
+            # Therefore adaptation sample counter
+            # must also restart from 0.
+            # ----------------------------------------------
+
+            self.controller.last_adaptation_sample_count = 0
+
+            # ----------------------------------------------
+            # Restore metadata
+            # ----------------------------------------------
+
             self.adapted_model_metadata = (
                 self.loaded_checkpoint.get(
-                "metadata",
-                {},
+                    "metadata",
+                    {},
+                )
             )
-        )
 
         else:
 
