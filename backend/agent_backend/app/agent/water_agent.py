@@ -6,22 +6,40 @@ from app.services.ml_service import (
 
 
 class WaterQualityAgent:
-
     """
-    Intelligent Water Quality Agent.
+    Main Water Quality Agent.
 
     Responsibilities:
 
-    1. Evaluate current water quality
-    2. Process live observations using ML
-    3. Evaluate future ML predictions
-    4. Analyze prediction confidence
-    5. Detect future risks
-    6. Generate recommendations
-    7. Generate hardware control decisions
+    1. Receive live sensor observations
+    2. Evaluate current water quality
+    3. Send observations to ML system
+    4. Analyze future predictions
+    5. Generate recommendations
+    6. Generate direct hardware control commands
     """
 
-    def __init__(self):
+    # ==================================================
+    # HARDWARE CONTROL TIME
+    # ==================================================
+
+    # Hardware calculates:
+    #
+    # time * 60000
+    #
+    # Therefore:
+    #
+    # 0.0833 minutes ≈ 5 seconds
+
+    CONTROL_TIME = 0.0833
+
+    # ==================================================
+    # INITIALIZATION
+    # ==================================================
+
+    def __init__(
+        self,
+    ) -> None:
 
         print()
 
@@ -31,62 +49,92 @@ class WaterQualityAgent:
 
         self.ml_service = MLService()
 
-        self.parameter_names = [
-
-            "pH",
-
-            "turbidity",
-
-            "temperature",
-
-            "dissolved_oxygen",
-
-            "TDS",
-
-        ]
-
         print(
             "Water Quality Agent ready"
         )
 
+    # ==================================================
+    # STATUS
+    # ==================================================
+
+    def get_status(
+        self,
+    ) -> dict:
+
+        return {
+
+            "agent_ready":
+                True,
+
+            "ml":
+                self.ml_service.get_status(),
+
+        }
 
     # ==================================================
     # CURRENT WATER QUALITY
     # ==================================================
 
     def evaluate_current_water_quality(
-
         self,
-
-        ph,
-
-        turbidity,
-
-        temperature,
-
-        dissolved_oxygen,
-
-        tds,
-
-    ):
-
+        observation,
+    ) -> dict:
         """
-        Evaluate current sensor readings.
+        Evaluate the current sensor values.
+
+        Expected order:
+
+        [
+            pH,
+            turbidity,
+            temperature,
+            dissolved_oxygen,
+            TDS
+        ]
         """
+
+        values = np.asarray(
+            observation,
+            dtype=float,
+        )
+
+        ph = float(
+            values[0]
+        )
+
+        turbidity = float(
+            values[1]
+        )
+
+        temperature = float(
+            values[2]
+        )
+
+        dissolved_oxygen = float(
+            values[3]
+        )
+
+        tds = float(
+            values[4]
+        )
 
         issues = []
-
 
         # ==============================================
         # pH
         # ==============================================
 
-        if ph < 6.5 or ph > 8.5:
+        if ph < 6.5:
 
             issues.append(
-                "pH is outside the recommended range"
+                "Low pH"
             )
 
+        elif ph > 8.5:
+
+            issues.append(
+                "High pH"
+            )
 
         # ==============================================
         # TURBIDITY
@@ -95,28 +143,24 @@ class WaterQualityAgent:
         if turbidity > 25:
 
             issues.append(
-                "Turbidity is elevated"
+                "High Turbidity"
             )
-
 
         # ==============================================
         # TEMPERATURE
         # ==============================================
 
-        if (
-
-            temperature < 20
-
-            or
-
-            temperature > 32
-
-        ):
+        if temperature < 20:
 
             issues.append(
-                "Temperature is outside the recommended range"
+                "Low Temperature"
             )
 
+        elif temperature > 32:
+
+            issues.append(
+                "High Temperature"
+            )
 
         # ==============================================
         # DISSOLVED OXYGEN
@@ -125,43 +169,49 @@ class WaterQualityAgent:
         if dissolved_oxygen < 5:
 
             issues.append(
-                "Dissolved oxygen is low"
+                "Low Dissolved Oxygen"
             )
-
 
         # ==============================================
         # TDS
         # ==============================================
 
-        if tds > 1000:
+        if tds > 500:
 
             issues.append(
-                "TDS is elevated"
+                "High TDS"
             )
 
-
         # ==============================================
-        # RISK
+        # RISK LEVEL
         # ==============================================
 
-        risk_level = "LOW"
+        if len(
+            issues
+        ) == 0:
 
-        if len(issues) >= 3:
+            status = "healthy"
 
-            risk_level = "HIGH"
+            risk_level = "LOW"
 
-        elif len(issues) >= 1:
+        elif len(
+            issues
+        ) == 1:
+
+            status = "warning"
 
             risk_level = "MEDIUM"
 
+        else:
+
+            status = "critical"
+
+            risk_level = "HIGH"
 
         return {
 
             "status":
-
-                "healthy"
-                if not issues
-                else "warning",
+                status,
 
             "risk_level":
                 risk_level,
@@ -171,185 +221,186 @@ class WaterQualityAgent:
 
         }
 
-
     # ==================================================
-    # FUTURE PREDICTION ANALYSIS
+    # FUTURE WATER QUALITY
     # ==================================================
 
-    def evaluate_future_predictions(
-
+    def evaluate_future_water_quality(
         self,
-
-        prediction,
-
-        confidence,
-
-    ):
-
+        prediction_result: dict,
+    ) -> dict:
         """
         Evaluate predicted future water quality.
+
+        Uses the average predicted value
+        across the prediction horizon.
         """
 
-        issues = []
-
-        parameter_analysis = {}
-
-
-        prediction = np.array(
-            prediction
+        prediction = np.asarray(
+            prediction_result[
+                "prediction"
+            ],
+            dtype=float,
         )
 
-        confidence = np.array(
-            confidence
+        confidence = np.asarray(
+            prediction_result[
+                "confidence"
+            ],
+            dtype=float,
         )
 
-
         # ==============================================
-        # MEAN PREDICTIONS
+        # MEAN FUTURE VALUES
         # ==============================================
 
-        mean_values = np.mean(
+        mean_prediction = np.mean(
             prediction,
             axis=0,
         )
-
 
         mean_confidence = np.mean(
             confidence,
             axis=0,
         )
 
+        # ==============================================
+        # VALUES
+        # ==============================================
+
+        ph = float(
+            mean_prediction[0]
+        )
+
+        turbidity = float(
+            mean_prediction[1]
+        )
+
+        temperature = float(
+            mean_prediction[2]
+        )
+
+        dissolved_oxygen = float(
+            mean_prediction[3]
+        )
+
+        tds = float(
+            mean_prediction[4]
+        )
 
         # ==============================================
-        # PARAMETER ANALYSIS
+        # CONFIDENCE
         # ==============================================
 
-        for index, parameter in enumerate(
+        ph_confidence = float(
+            mean_confidence[0]
+        )
 
-            self.parameter_names
+        turbidity_confidence = float(
+            mean_confidence[1]
+        )
 
-        ):
+        temperature_confidence = float(
+            mean_confidence[2]
+        )
 
-            value = float(
-                mean_values[index]
+        dissolved_oxygen_confidence = float(
+            mean_confidence[3]
+        )
+
+        tds_confidence = float(
+            mean_confidence[4]
+        )
+
+        overall_confidence = float(
+            np.mean(
+                mean_confidence
             )
+        )
 
-            confidence_value = float(
-                mean_confidence[index]
-            )
-
-
-            parameter_analysis[
-                parameter
-            ] = {
-
-                "predicted_value":
-                    value,
-
-                "confidence":
-                    confidence_value,
-
-            }
-
+        issues = []
 
         # ==============================================
         # FUTURE pH
         # ==============================================
 
-        if (
-
-            mean_values[0] < 6.5
-
-            or
-
-            mean_values[0] > 8.5
-
-        ):
+        if ph < 6.5:
 
             issues.append(
-                "Future pH may move outside the safe range"
+                "Predicted Low pH"
             )
 
+        elif ph > 8.5:
+
+            issues.append(
+                "Predicted High pH"
+            )
 
         # ==============================================
         # FUTURE TURBIDITY
         # ==============================================
 
-        if mean_values[1] > 25:
+        if turbidity > 25:
 
             issues.append(
-                "Future turbidity may become elevated"
+                "Predicted High Turbidity"
             )
-
 
         # ==============================================
         # FUTURE TEMPERATURE
         # ==============================================
 
-        if (
-
-            mean_values[2] < 20
-
-            or
-
-            mean_values[2] > 32
-
-        ):
+        if temperature < 20:
 
             issues.append(
-                "Future temperature may become unsafe"
+                "Predicted Low Temperature"
             )
 
-
-        # ==============================================
-        # FUTURE DISSOLVED OXYGEN
-        # ==============================================
-
-        if mean_values[3] < 5:
+        elif temperature > 32:
 
             issues.append(
-                "Future dissolved oxygen may become low"
+                "Predicted High Temperature"
             )
 
+        # ==============================================
+        # FUTURE DO
+        # ==============================================
+
+        if dissolved_oxygen < 5:
+
+            issues.append(
+                "Predicted Low Dissolved Oxygen"
+            )
 
         # ==============================================
         # FUTURE TDS
         # ==============================================
 
-        if mean_values[4] > 1000:
+        if tds > 500:
 
             issues.append(
-                "Future TDS may become elevated"
+                "Predicted High TDS"
             )
 
-
         # ==============================================
-        # OVERALL CONFIDENCE
-        # ==============================================
-
-        overall_confidence = float(
-
-            np.mean(
-                mean_confidence
-            )
-
-        )
-
-
-        # ==============================================
-        # RISK LEVEL
+        # FUTURE RISK
         # ==============================================
 
-        risk_level = "LOW"
+        if len(
+            issues
+        ) == 0:
 
-        if len(issues) >= 3:
+            risk_level = "LOW"
 
-            risk_level = "HIGH"
-
-        elif len(issues) >= 1:
+        elif len(
+            issues
+        ) == 1:
 
             risk_level = "MEDIUM"
 
+        else:
+
+            risk_level = "HIGH"
 
         return {
 
@@ -362,281 +413,416 @@ class WaterQualityAgent:
             "overall_confidence":
                 overall_confidence,
 
-            "parameters":
-                parameter_analysis,
+            "parameters": {
+
+                "pH": {
+
+                    "predicted_value":
+                        ph,
+
+                    "confidence":
+                        ph_confidence,
+
+                },
+
+                "turbidity": {
+
+                    "predicted_value":
+                        turbidity,
+
+                    "confidence":
+                        turbidity_confidence,
+
+                },
+
+                "temperature": {
+
+                    "predicted_value":
+                        temperature,
+
+                    "confidence":
+                        temperature_confidence,
+
+                },
+
+                "dissolved_oxygen": {
+
+                    "predicted_value":
+                        dissolved_oxygen,
+
+                    "confidence":
+                        dissolved_oxygen_confidence,
+
+                },
+
+                "TDS": {
+
+                    "predicted_value":
+                        tds,
+
+                    "confidence":
+                        tds_confidence,
+
+                },
+
+            },
 
         }
 
-
     # ==================================================
-    # GENERATE RECOMMENDATIONS
+    # RECOMMENDATIONS
     # ==================================================
 
     def generate_recommendations(
-
         self,
-
-        current,
-
-        future,
-
-    ):
-
+        current_evaluation: dict,
+        future_evaluation: dict,
+    ) -> list:
         """
-        Generate recommendations using
-        current and predicted water quality.
+        Generate human-readable recommendations.
         """
 
         recommendations = []
 
+        all_issues = (
 
-        # ==============================================
-        # CURRENT ISSUES
-        # ==============================================
-
-        for issue in current["issues"]:
-
-            recommendations.append(
-                f"Current condition: {issue}"
+            current_evaluation.get(
+                "issues",
+                [],
             )
 
+            +
 
-        # ==============================================
-        # FUTURE ISSUES
-        # ==============================================
-
-        for issue in future["issues"]:
-
-            recommendations.append(
-                f"Predicted condition: {issue}"
+            future_evaluation.get(
+                "issues",
+                [],
             )
 
+        )
+
+        issues_lower = [
+
+            str(
+                issue
+            ).lower()
+
+            for issue in all_issues
+
+        ]
 
         # ==============================================
-        # LOW CONFIDENCE
+        # pH
         # ==============================================
 
-        if (
-
-            future[
-                "overall_confidence"
-            ]
-
-            < 0.6
-
+        if any(
+            "high ph" in issue
+            for issue in issues_lower
         ):
 
             recommendations.append(
-
-                "Prediction confidence is low. "
-                "Continue monitoring before taking "
-                "major corrective action."
-
+                "pH is above the recommended range. "
+                "Reduce pH carefully."
             )
 
+        if any(
+            "low ph" in issue
+            for issue in issues_lower
+        ):
+
+            recommendations.append(
+                "pH is below the recommended range. "
+                "Increase pH carefully."
+            )
 
         # ==============================================
-        # HEALTHY
+        # TURBIDITY
+        # ==============================================
+
+        if any(
+            "turbidity" in issue
+            for issue in issues_lower
+        ):
+
+            recommendations.append(
+                "Turbidity is elevated. "
+                "Improve filtration or water circulation."
+            )
+
+        # ==============================================
+        # TEMPERATURE
+        # ==============================================
+
+        if any(
+            "temperature" in issue
+            for issue in issues_lower
+        ):
+
+            recommendations.append(
+                "Water temperature requires monitoring."
+            )
+
+        # ==============================================
+        # DISSOLVED OXYGEN
+        # ==============================================
+
+        if any(
+            "oxygen" in issue
+            for issue in issues_lower
+        ):
+
+            recommendations.append(
+                "Dissolved oxygen is low. "
+                "Increase aeration."
+            )
+
+        # ==============================================
+        # TDS
+        # ==============================================
+
+        if any(
+            "tds" in issue
+            for issue in issues_lower
+        ):
+
+            recommendations.append(
+                "TDS is elevated. "
+                "Consider partial water replacement."
+            )
+
+        # ==============================================
+        # STABLE
         # ==============================================
 
         if not recommendations:
 
             recommendations.append(
-
                 "Water quality is currently stable "
                 "and predicted to remain stable."
-
             )
-
 
         return recommendations
 
-
     # ==================================================
-    # HARDWARE CONTROL DECISION
+    # HARDWARE CONTROL
     # ==================================================
 
-    def generate_control_decision(
-
+    def generate_hardware_control(
         self,
-
-        current,
-
-        future,
-
-    ):
-
+        current_evaluation: dict,
+        future_evaluation: dict,
+    ) -> dict:
         """
-        Generate hardware control commands.
+        Generate direct hardware control command.
 
-        This JSON will later be sent
-        to the control system.
+        Hardware expects:
+
+        {
+            "message": "...",
+            "time": ...
+        }
+
+        IMPORTANT:
+
+        Hardware interprets time in minutes.
+
+        0.0833 minutes ≈ 5 seconds.
         """
 
-        controls = {
+        current_issues = current_evaluation.get(
+            "issues",
+            [],
+        )
 
-            "aerator":
+        future_issues = future_evaluation.get(
+            "issues",
+            [],
+        )
 
-                {
-                    "action":
-                        "OFF",
+        all_issues = (
 
-                    "reason":
-                        "Dissolved oxygen is sufficient",
+            current_issues
 
-                },
+            +
 
+            future_issues
 
-            "water_pump":
+        )
 
-                {
-                    "action":
-                        "OFF",
+        issues_lower = [
 
-                    "reason":
-                        "Water quality is stable",
+            str(
+                issue
+            ).lower()
 
-                },
+            for issue in all_issues
+
+        ]
+
+        # ==============================================
+        # PRIORITY 1
+        # LOW DISSOLVED OXYGEN
+        # ==============================================
+
+        if any(
+            "oxygen" in issue
+            for issue in issues_lower
+        ):
+
+            return {
+
+                "message":
+                    "Start Aerator",
+
+                "time":
+                    self.CONTROL_TIME,
+
+            }
+
+        # ==============================================
+        # PRIORITY 2
+        # HIGH pH
+        # ==============================================
+
+        if any(
+            "high ph" in issue
+            for issue in issues_lower
+        ):
+
+            return {
+
+                "message":
+                    "Release Acid",
+
+                "time":
+                    self.CONTROL_TIME,
+
+            }
+
+        # ==============================================
+        # PRIORITY 3
+        # LOW pH
+        # ==============================================
+
+        if any(
+            "low ph" in issue
+            for issue in issues_lower
+        ):
+
+            return {
+
+                "message":
+                    "Release Base",
+
+                "time":
+                    self.CONTROL_TIME,
+
+            }
+
+        # ==============================================
+        # PRIORITY 4
+        # HIGH TURBIDITY
+        # ==============================================
+
+        if any(
+            "turbidity" in issue
+            for issue in issues_lower
+        ):
+
+            return {
+
+                "message":
+                    "Start Water Pump",
+
+                "time":
+                    self.CONTROL_TIME,
+
+            }
+
+        # ==============================================
+        # NO ACTION
+        # ==============================================
+
+        return {
+
+            "message":
+                "No Action",
+
+            "time":
+                0,
 
         }
 
-
-        # ==============================================
-        # CURRENT DO
-        # ==============================================
-
-        if (
-
-            current["risk_level"]
-            in ["MEDIUM", "HIGH"]
-
-        ):
-
-            controls[
-                "water_pump"
-            ] = {
-
-                "action":
-                    "MONITOR",
-
-                "reason":
-                    "Water quality requires monitoring",
-
-            }
-
-
-        # ==============================================
-        # FUTURE DO
-        # ==============================================
-
-        predicted_do = (
-
-            future["parameters"]
-            ["dissolved_oxygen"]
-            ["predicted_value"]
-
-        )
-
-
-        if predicted_do < 5:
-
-            controls[
-                "aerator"
-            ] = {
-
-                "action":
-                    "ON",
-
-                "reason":
-                    "Predicted dissolved oxygen may become low",
-
-            }
-
-
-        return controls
-
-
     # ==================================================
-    # MAIN AGENT WORKFLOW
+    # MAIN PROCESS
     # ==================================================
 
-    def evaluate(
-
+    def process_observation(
         self,
-
-        ph,
-
-        turbidity,
-
-        temperature,
-
-        dissolved_oxygen,
-
-        tds,
-
-    ):
-
+            ph: float,
+            turbidity: float,
+            temperature: float,
+            dissolved_oxygen: float,
+            tds: float,
+        ) -> dict:
         """
-        Main Agent workflow.
+        Main Agent entry point.
+
+        Flow:
+
+        Sensor Observation
+                ↓
+        Current Water Evaluation
+                ↓
+        ML Processing
+                ↓
+        Future Prediction
+                ↓
+        Future Evaluation
+                ↓
+        Recommendations
+                ↓
+        Hardware Control
         """
 
+        observation = [
+            ph,
+            turbidity,
+            temperature,
+            dissolved_oxygen,
+            tds,
+        ]
 
         # ==============================================
-        # CURRENT EVALUATION
+        # CURRENT WATER QUALITY
         # ==============================================
 
         current_evaluation = (
-
             self.evaluate_current_water_quality(
-
-                ph=ph,
-
-                turbidity=turbidity,
-
-                temperature=temperature,
-
-                dissolved_oxygen=
-                    dissolved_oxygen,
-
-                tds=tds,
-
+                observation
             )
-
         )
-
 
         # ==============================================
         # ML PROCESSING
         # ==============================================
 
         ml_result = (
-
             self.ml_service.process_observation(
-
                 ph=ph,
-
                 turbidity=turbidity,
-
                 temperature=temperature,
-
-                dissolved_oxygen=
-                    dissolved_oxygen,
-
+                dissolved_oxygen=dissolved_oxygen,
                 tds=tds,
-
             )
-
         )
 
-
         # ==============================================
-        # NO ML PREDICTION YET
+        # ML FAILURE
         # ==============================================
 
-        if (
-
-            not ml_result["success"]
-
+        if not ml_result.get(
+            "success",
+            False,
         ):
 
             return {
@@ -645,17 +831,25 @@ class WaterQualityAgent:
                     False,
 
                 "error":
-                    ml_result["error"],
+                    ml_result.get(
+                        "error",
+                        "ML processing failed",
+                    ),
+
+                "current_water_quality":
+                    current_evaluation,
 
             }
 
-
         prediction_result = (
-
-            ml_result["prediction"]
-
+            ml_result.get(
+                "prediction"
+            )
         )
 
+        # ==============================================
+        # PREDICTION NOT READY
+        # ==============================================
 
         if prediction_result is None:
 
@@ -664,83 +858,83 @@ class WaterQualityAgent:
                 "success":
                     True,
 
-                "current_water_quality":
-                    current_evaluation,
-
                 "prediction_ready":
                     False,
 
-                "message":
+                "current_water_quality":
+                    current_evaluation,
 
-                    "Collecting sensor history "
-                    "for ML prediction.",
+                "hardware_control": {
 
-                "ml":
-                    ml_result,
+                    "message":
+                        "No Action",
+
+                    "time":
+                        0,
+
+                },
+
+                "ml": {
+
+                    "buffer":
+                        ml_result.get(
+                            "buffer"
+                        ),
+
+                    "prediction":
+                        None,
+
+                },
 
             }
 
-
         # ==============================================
-        # FUTURE ANALYSIS
+        # FUTURE WATER QUALITY
         # ==============================================
 
         future_evaluation = (
-
-            self.evaluate_future_predictions(
-
-                prediction=
-                    prediction_result[
-                        "prediction"
-                    ],
-
-                confidence=
-                    prediction_result[
-                        "confidence"
-                    ],
-
+            self.evaluate_future_water_quality(
+                prediction_result
             )
-
         )
-
 
         # ==============================================
         # RECOMMENDATIONS
         # ==============================================
 
         recommendations = (
-
             self.generate_recommendations(
-
-                current=
-                    current_evaluation,
-
-                future=
-                    future_evaluation,
-
+                current_evaluation,
+                future_evaluation,
             )
-
         )
 
-
         # ==============================================
-        # CONTROL DECISION
+        # HARDWARE CONTROL
         # ==============================================
 
-        controls = (
-
-            self.generate_control_decision(
-
-                current=
-                    current_evaluation,
-
-                future=
-                    future_evaluation,
-
+        hardware_control = (
+            self.generate_hardware_control(
+                current_evaluation,
+                future_evaluation,
             )
-
         )
 
+        # ==============================================
+        # JSON SAFE ML DATA
+        # ==============================================
+
+        prediction_data = np.asarray(
+            prediction_result[
+                "prediction"
+            ]
+        ).tolist()
+
+        confidence_data = np.asarray(
+            prediction_result[
+                "confidence"
+            ]
+        ).tolist()
 
         # ==============================================
         # FINAL RESPONSE
@@ -763,28 +957,26 @@ class WaterQualityAgent:
             "recommendations":
                 recommendations,
 
-            "controls":
-                controls,
+            "hardware_control":
+                hardware_control,
 
-            "ml":
-                ml_result,
+            "ml": {
 
-        }
+                "buffer":
+                    ml_result.get(
+                        "buffer"
+                    ),
 
+                "prediction": {
 
-    # ==================================================
-    # AGENT STATUS
-    # ==================================================
+                    "prediction":
+                        prediction_data,
 
-    def get_status(self):
+                    "confidence":
+                        confidence_data,
 
-        return {
+                },
 
-            "agent_ready":
-                True,
-
-            "ml":
-
-                self.ml_service.get_status(),
+            },
 
         }

@@ -46,7 +46,7 @@ def main():
             base + variation
         )
 
-        result = agent.evaluate(
+        result = agent.process_observation(
 
             ph=observation[0],
 
