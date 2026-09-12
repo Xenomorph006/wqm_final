@@ -611,22 +611,6 @@ class WaterQualityAgent:
         current_evaluation: dict,
         future_evaluation: dict,
     ) -> dict:
-        """
-        Generate direct hardware control command.
-
-        Hardware expects:
-
-        {
-            "message": "...",
-            "time": ...
-        }
-
-        IMPORTANT:
-
-        Hardware interprets time in minutes.
-
-        0.0833 minutes ≈ 5 seconds.
-        """
 
         current_issues = current_evaluation.get(
             "issues",
@@ -639,27 +623,22 @@ class WaterQualityAgent:
         )
 
         all_issues = (
-
             current_issues
-
             +
-
             future_issues
-
         )
 
         issues_lower = [
 
-            str(
-                issue
-            ).lower()
+            str(issue).lower()
 
             for issue in all_issues
 
         ]
 
+        control_messages = []
+
         # ==============================================
-        # PRIORITY 1
         # LOW DISSOLVED OXYGEN
         # ==============================================
 
@@ -668,18 +647,11 @@ class WaterQualityAgent:
             for issue in issues_lower
         ):
 
-            return {
-
-                "message":
-                    "Start Aerator",
-
-                "time":
-                    self.CONTROL_TIME,
-
-            }
+            control_messages.append(
+                "Start Aerator"
+            )
 
         # ==============================================
-        # PRIORITY 2
         # HIGH pH
         # ==============================================
 
@@ -688,18 +660,11 @@ class WaterQualityAgent:
             for issue in issues_lower
         ):
 
-            return {
-
-                "message":
-                    "Release Acid",
-
-                "time":
-                    self.CONTROL_TIME,
-
-            }
+            control_messages.append(
+                "Release Acid"
+            )
 
         # ==============================================
-        # PRIORITY 3
         # LOW pH
         # ==============================================
 
@@ -708,18 +673,11 @@ class WaterQualityAgent:
             for issue in issues_lower
         ):
 
-            return {
-
-                "message":
-                    "Release Base",
-
-                "time":
-                    self.CONTROL_TIME,
-
-            }
+            control_messages.append(
+                "Release Base"
+            )
 
         # ==============================================
-        # PRIORITY 4
         # HIGH TURBIDITY
         # ==============================================
 
@@ -728,27 +686,78 @@ class WaterQualityAgent:
             for issue in issues_lower
         ):
 
-            return {
+            control_messages.append(
+                "Start Water Pump"
+            )
 
-                "message":
-                    "Start Water Pump",
+        # ==============================================
+        # HIGH TDS
+        # ==============================================
 
-                "time":
-                    self.CONTROL_TIME,
+        if any(
+            "tds" in issue
+            for issue in issues_lower
+        ):
 
-            }
+            control_messages.append(
+                "Partial Water Replacement"
+            )
+
+        # ==============================================
+        # HIGH TEMPERATURE
+        # ==============================================
+
+        if any(
+            "high temperature" in issue
+            for issue in issues_lower
+        ):
+
+            control_messages.append(
+                "Start Cooling System"
+            )
+
+        # ==============================================
+        # LOW TEMPERATURE
+        # ==============================================
+
+        elif any(
+            "low temperature" in issue
+            for issue in issues_lower
+        ):
+
+            control_messages.append(
+                "Start Heater"
+            )
 
         # ==============================================
         # NO ACTION
         # ==============================================
 
+        if not control_messages:
+
+            return {
+
+                "message":
+                    "No Action",
+
+                "time":
+                    0,
+
+            }
+
+        # ==============================================
+        # FINAL RESPONSE
+        # ==============================================
+
         return {
 
             "message":
-                "No Action",
+                ", ".join(
+                    control_messages
+                ),
 
             "time":
-                0,
+                self.CONTROL_TIME,
 
         }
 
