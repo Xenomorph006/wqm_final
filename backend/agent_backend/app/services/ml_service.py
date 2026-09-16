@@ -43,6 +43,8 @@ class MLService:
             ml_path = (
                 project_root / "ml"
             )
+            
+            adapted_ml_path = ( ml_path / "models" / "adapted" )
 
 
             # ==========================================
@@ -181,9 +183,12 @@ class MLService:
 
                     hidden_size=64,
 
-                    minimum_samples=32,
+                    minimum_samples=10,
 
-                    adaptation_batch_size=32,
+                    adaptation_batch_size=10,
+                  #  model_store_directory=str(
+                  #      adapted_ml_path
+                  #  model_store_filename="lnn_latest.pt",
 
                 )
             )
