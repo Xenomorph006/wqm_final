@@ -1,3 +1,5 @@
+import os
+# from app.database.mongodb import save_agent_response
 from fastapi import (
     APIRouter,
     HTTPException,
@@ -14,7 +16,8 @@ from app.services.agent_service import (
 
 
 router = APIRouter()
-
+MONGO_DB = os.environ.get("MONGO_URI")
+print(f"MongoDB URI: {MONGO_DB}")
 
 agent_service = None
 
@@ -65,6 +68,8 @@ def health():
 @router.post(
     "/process"
 )
+
+
 def process_water_observation(
     observation: WaterObservation,
 ):
@@ -96,6 +101,9 @@ def process_water_observation(
 
             )
         )
+        
+
+        # save_agent_response(result)
 
         return result
 
