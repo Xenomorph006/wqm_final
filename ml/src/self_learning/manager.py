@@ -136,6 +136,13 @@ class SelfLearningManager:
                 device=str(self.device),
             )
         )
+        
+        print("========== MODEL STORE DEBUG ==========")
+        print("Manager file:", Path(__file__).resolve())
+        print("Model store directory:", adapted_model_directory.resolve())
+        print("Model store filename:", self.model_store.filename)
+        print("Model store path:", self.model_store.model_path.resolve())
+        print("=======================================")
 
         self.adapted_model_metadata = None
 
