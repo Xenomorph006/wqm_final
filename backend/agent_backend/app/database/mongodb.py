@@ -14,7 +14,7 @@ load_dotenv(BASE_DIR / ".env")
 
 # Read environment variables
 MONGO_URI = os.getenv("MONGO_URI")
-MONGO_DB = os.getenv("MONGO_DB", "water_quality")
+MONGO_DB = os.getenv("MONGO_DB", "wqm")
 MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "agent_responses")
 
 # Debug (remove after testing)
