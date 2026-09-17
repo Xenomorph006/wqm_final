@@ -691,19 +691,6 @@ class WaterQualityAgent:
             )
 
         # ==============================================
-        # HIGH TDS
-        # ==============================================
-
-        if any(
-            "tds" in issue
-            for issue in issues_lower
-        ):
-
-            control_messages.append(
-                "Partial Water Replacement"
-            )
-
-        # ==============================================
         # HIGH TEMPERATURE
         # ==============================================
 
