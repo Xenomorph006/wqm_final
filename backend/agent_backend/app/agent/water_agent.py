@@ -607,115 +607,126 @@ class WaterQualityAgent:
     # ==================================================
 
     def generate_hardware_control(
-            self,
-            current_evaluation: dict,
-            future_evaluation: dict,
-        ) -> dict:
+        self,
+        current_evaluation: dict,
+        future_evaluation: dict,
+    ) -> dict:
 
-            current_issues = current_evaluation.get(
-                "issues",
-                [],
+    # ==============================================
+    # GET CURRENT + FUTURE ISSUES
+    # ==============================================
+
+        current_issues = current_evaluation.get(
+            "issues",
+            [],
+        )
+
+        future_issues = future_evaluation.get(
+            "issues",
+            [],
+        )
+
+        all_issues = (
+            current_issues
+            + future_issues
+        )
+
+        issues_lower = [
+            str(issue).lower()
+            for issue in all_issues
+        ]
+
+        # ==============================================
+        # CRITICALITY DETECTION
+        # ==============================================
+
+        critical_controls = []
+
+        # LOW DISSOLVED OXYGEN
+        if any(
+            "low oxygen" in issue
+            or "low dissolved oxygen" in issue
+            for issue in issues_lower
+        ):
+            critical_controls.append(
+                ("Start Aerator", 1.0)
             )
 
-            future_issues = future_evaluation.get(
-                "issues",
-                [],
+        # HIGH TEMPERATURE
+        if any(
+            "high temperature" in issue
+            for issue in issues_lower
+        ):
+            critical_controls.append(
+                ("Start Cooling System", 1.0)
             )
 
-            all_issues = (
-                current_issues
-                + future_issues
+        # LOW TEMPERATURE
+        if any(
+            "low temperature" in issue
+            for issue in issues_lower
+        ):
+            critical_controls.append(
+                ("Start Heater", 1.0)
             )
 
-            issues_lower = [
-                str(issue).lower()
-                for issue in all_issues
-            ]
+        # HIGH pH
+        if any(
+            "high ph" in issue
+            for issue in issues_lower
+        ):
+            critical_controls.append(
+                ("Release Acid", 1.0)
+            )
 
-            # ==============================================
-            # 1. LOW DISSOLVED OXYGEN — MOST CRITICAL
-            # ==============================================
+        # LOW pH
+        if any(
+            "low ph" in issue
+            for issue in issues_lower
+        ):
+            critical_controls.append(
+                ("Release Base", 1.0)
+            )
 
-            if any(
-                "oxygen" in issue
-                for issue in issues_lower
-            ):
+        # HIGH TURBIDITY
+        if any(
+            "high turbidity" in issue
+            for issue in issues_lower
+        ):
+            critical_controls.append(
+                ("Start Water Pump", 1.0)
+            )
 
-                return {
-                    "message": "Start Aerator",
-                    "time": self.CONTROL_TIME,
-                }
+        # ==============================================
+        # NO CRITICAL CONDITION
+        # ==============================================
 
-            # ==============================================
-            # 2. TEMPERATURE
-            # ==============================================
-
-            if any(
-                "high temperature" in issue
-                for issue in issues_lower
-            ):
-
-                return {
-                    "message": "Start Cooling System",
-                    "time": self.CONTROL_TIME,
-                }
-
-            if any(
-                "low temperature" in issue
-                for issue in issues_lower
-            ):
-
-                return {
-                    "message": "Start Heater",
-                    "time": self.CONTROL_TIME,
-                }
-
-            # ==============================================
-            # 3. pH
-            # ==============================================
-
-            if any(
-                "high ph" in issue
-                for issue in issues_lower
-            ):
-
-                return {
-                    "message": "Release Acid",
-                    "time": self.CONTROL_TIME,
-                }
-
-            if any(
-                "low ph" in issue
-                for issue in issues_lower
-            ):
-
-                return {
-                    "message": "Release Base",
-                    "time": self.CONTROL_TIME,
-                }
-
-            # ==============================================
-            # 4. HIGH TURBIDITY
-            # ==============================================
-
-            if any(
-                "turbidity" in issue
-                for issue in issues_lower
-            ):
-
-                return {
-                    "message": "Start Water Pump",
-                    "time": self.CONTROL_TIME,
-                }
-
-            # ==============================================
-            # NO ACTION REQUIRED
-            # ==============================================
+        if not critical_controls:
 
             return {
                 "message": "No Action",
                 "time": 0,
             }
+
+        # ==============================================
+        # SELECT MOST CRITICAL PARAMETER
+        # ==============================================
+
+        critical_controls.sort(
+            key=lambda x: x[1],
+            reverse=True,
+        )
+
+        selected_control = critical_controls[0][0]
+
+        # ==============================================
+        # FINAL HARDWARE RESPONSE
+        # ==============================================
+
+        return {
+            "message": selected_control,
+            "time": self.CONTROL_TIME,
+        }
 
     # ==================================================
     # MAIN PROCESS
