@@ -607,146 +607,115 @@ class WaterQualityAgent:
     # ==================================================
 
     def generate_hardware_control(
-        self,
-        current_evaluation: dict,
-        future_evaluation: dict,
-    ) -> dict:
+            self,
+            current_evaluation: dict,
+            future_evaluation: dict,
+        ) -> dict:
 
-        current_issues = current_evaluation.get(
-            "issues",
-            [],
-        )
-
-        future_issues = future_evaluation.get(
-            "issues",
-            [],
-        )
-
-        all_issues = (
-            current_issues
-            +
-            future_issues
-        )
-
-        issues_lower = [
-
-            str(issue).lower()
-
-            for issue in all_issues
-
-        ]
-
-        control_messages = []
-
-        # ==============================================
-        # LOW DISSOLVED OXYGEN
-        # ==============================================
-
-        if any(
-            "oxygen" in issue
-            for issue in issues_lower
-        ):
-
-            control_messages.append(
-                "Start Aerator"
+            current_issues = current_evaluation.get(
+                "issues",
+                [],
             )
 
-        # ==============================================
-        # HIGH pH
-        # ==============================================
-
-        if any(
-            "high ph" in issue
-            for issue in issues_lower
-        ):
-
-            control_messages.append(
-                "Release Acid"
+            future_issues = future_evaluation.get(
+                "issues",
+                [],
             )
 
-        # ==============================================
-        # LOW pH
-        # ==============================================
-
-        if any(
-            "low ph" in issue
-            for issue in issues_lower
-        ):
-
-            control_messages.append(
-                "Release Base"
+            all_issues = (
+                current_issues
+                + future_issues
             )
 
-        # ==============================================
-        # HIGH TURBIDITY
-        # ==============================================
+            issues_lower = [
+                str(issue).lower()
+                for issue in all_issues
+            ]
 
-        if any(
-            "turbidity" in issue
-            for issue in issues_lower
-        ):
+            # ==============================================
+            # 1. LOW DISSOLVED OXYGEN — MOST CRITICAL
+            # ==============================================
 
-            control_messages.append(
-                "Start Water Pump"
-            )
+            if any(
+                "oxygen" in issue
+                for issue in issues_lower
+            ):
 
-        # ==============================================
-        # HIGH TEMPERATURE
-        # ==============================================
+                return {
+                    "message": "Start Aerator",
+                    "time": self.CONTROL_TIME,
+                }
 
-        if any(
-            "high temperature" in issue
-            for issue in issues_lower
-        ):
+            # ==============================================
+            # 2. TEMPERATURE
+            # ==============================================
 
-            control_messages.append(
-                "Start Cooling System"
-            )
+            if any(
+                "high temperature" in issue
+                for issue in issues_lower
+            ):
 
-        # ==============================================
-        # LOW TEMPERATURE
-        # ==============================================
+                return {
+                    "message": "Start Cooling System",
+                    "time": self.CONTROL_TIME,
+                }
 
-        elif any(
-            "low temperature" in issue
-            for issue in issues_lower
-        ):
+            if any(
+                "low temperature" in issue
+                for issue in issues_lower
+            ):
 
-            control_messages.append(
-                "Start Heater"
-            )
+                return {
+                    "message": "Start Heater",
+                    "time": self.CONTROL_TIME,
+                }
 
-        # ==============================================
-        # NO ACTION
-        # ==============================================
+            # ==============================================
+            # 3. pH
+            # ==============================================
 
-        if not control_messages:
+            if any(
+                "high ph" in issue
+                for issue in issues_lower
+            ):
+
+                return {
+                    "message": "Release Acid",
+                    "time": self.CONTROL_TIME,
+                }
+
+            if any(
+                "low ph" in issue
+                for issue in issues_lower
+            ):
+
+                return {
+                    "message": "Release Base",
+                    "time": self.CONTROL_TIME,
+                }
+
+            # ==============================================
+            # 4. HIGH TURBIDITY
+            # ==============================================
+
+            if any(
+                "turbidity" in issue
+                for issue in issues_lower
+            ):
+
+                return {
+                    "message": "Start Water Pump",
+                    "time": self.CONTROL_TIME,
+                }
+
+            # ==============================================
+            # NO ACTION REQUIRED
+            # ==============================================
 
             return {
-
-                "message":
-                    "No Action",
-
-                "time":
-                    0,
-
+                "message": "No Action",
+                "time": 0,
             }
-
-        # ==============================================
-        # FINAL RESPONSE
-        # ==============================================
-
-        return {
-
-            "message":
-                ", ".join(
-                    control_messages
-                ),
-
-            "time":
-                self.CONTROL_TIME,
-
-        }
 
     # ==================================================
     # MAIN PROCESS
