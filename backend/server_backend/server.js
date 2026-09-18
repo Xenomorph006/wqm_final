@@ -1,30 +1,18 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { collectAndForward } from "./controllers/realtimeController.js";
-
+import { collectAndForward, getLatestReading } from "./controllers/realtimeController.js";
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-
-// IP/host of the Flask backend on the Raspberry Pi that exposes GET /realtime
-// e.g. http://192.168.1.50:5000  (set BACKEND_URL in your .env file)
 const BACKEND_URL = process.env.BACKEND_URL;
-
-// Agent server that collected readings get forwarded to (set DEST_URL in your .env file)
 const DEST_URL = process.env.DEST_URL;
-
-// How often to auto-collect from BACKEND_URL and forward to DEST_URL, in ms.
-// Set POLL_INTERVAL_MS=0 in .env to disable automatic polling.
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS ?? 5000);
 
 app.use(cors());
-app.use(express.json()); // needed to parse req.body for POST /api/datasend
 
-// Proxy endpoint for your existing frontend to poll. Keeps the Flask
-// backend's IP out of client-side code and sidesteps CORS/network
-// issues on the ESP32/Flask side.
+app.use(express.json());
 app.get("/api/realtime", async (req, res) => {
     try {
         const response = await fetch(`${BACKEND_URL}`);
@@ -78,7 +66,22 @@ app.post("/api/datasend", async (req, res) => {
         });
     }
 });
+//frontend data sending
+app.get("/api/data", (req, res) => {
+    const latest = getLatestReading();
 
+    if (!latest) {
+        return res.status(404).json({
+            success: false,
+            message: "No data collected yet"
+        });
+    }
+
+    res.json({
+        success: true,
+        data: latest
+    });
+});
 // Manually trigger one collect-from-backend -> forward-to-agent cycle.
 app.post("/api/collect", async (req, res) => {
     try {

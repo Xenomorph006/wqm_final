@@ -6,6 +6,7 @@ dotenv.config();
 
 const BACKEND_URL = process.env.BACKEND_URL;
 const DEST_URL = process.env.DEST_URL;
+let latestReading = null;
 
 /**
  * GET {BACKEND_URL}
@@ -67,11 +68,17 @@ async function forwardToAgent(payload) {
  * One full cycle: collect from the backend, forward to the agent server.
  * Returns { source, forwarded } on success.
  */
+
 async function collectAndForward() {
     const data = await fetchRealtimeData();
+    latestReading = data;
     const forwarded = await forwardToAgent(data);
     console.log("Collected reading and forwarded it to agent server:", data);
     return { source: data, forwarded };
 }
 
-export { fetchRealtimeData, forwardToAgent, collectAndForward };
+function getLatestReading() {
+    return latestReading;
+}
+
+export { fetchRealtimeData, forwardToAgent, collectAndForward, getLatestReading };
