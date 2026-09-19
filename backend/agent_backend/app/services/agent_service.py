@@ -27,13 +27,32 @@ class AgentService:
         tds: float,
     ) -> dict:
 
-        return self.agent.process_observation(
+        result = self.agent.process_observation(
             ph=ph,
             turbidity=turbidity,
             temperature=temperature,
             dissolved_oxygen=dissolved_oxygen,
             tds=tds,
         )
+
+        fish_recommendation = (
+            self.fish_recommender.recommend(
+                ph=ph,
+                turbidity=turbidity,
+                temperature=temperature,
+                dissolved_oxygen=dissolved_oxygen,
+                tds=tds,
+                prediction=result.get(
+                    "prediction"
+                ),
+            )
+        )
+
+        result["fish_recommendation"] = (
+            fish_recommendation
+        )
+
+        return result
 
     def get_status(
         self,
