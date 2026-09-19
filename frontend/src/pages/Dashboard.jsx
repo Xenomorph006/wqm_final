@@ -6,6 +6,7 @@ import { useAnimatedValue } from "../hooks/useAnimatedValue";
 import {
   fetchDashboardStats,
   fetchHistorySeries,
+  fetchLiveReadings,
   fetchRecentPredictions,
   METRIC_META,
 } from "../services/dataService";
@@ -128,6 +129,12 @@ function Dashboard() {
     let cancelled = false;
 
     const poll = async () => {
+      // fetchHistorySeries() reads from the live buffer — fetchLiveReadings()
+      // is the only thing that writes to it. Nothing on this page called it,
+      // so the chart was always empty regardless of backend status. Await it
+      // first so this cycle's point is in the buffer before history is read.
+      await fetchLiveReadings();
+
       const [s, h, p] = await Promise.all([
         fetchDashboardStats(),
         fetchHistorySeries(30),

@@ -13,8 +13,8 @@ async function getReports(req, res) {
     try {
         const limit = Math.min(Number(req.query.limit) || 20, 100);
         const reports = await collection()
-            .find({}, { projection: { samples: 0 } }) // omit raw samples in the list view
-            .sort({ finishedAt: -1 })
+            .find({}, { projection: { samples: 0 } })
+            .sort({ savedAt: -1 })
             .limit(limit)
             .toArray();
 
@@ -25,7 +25,7 @@ async function getReports(req, res) {
     }
 }
 
-// GET /api/reports/:id — full detail including raw samples
+// GET /api/reports/:id
 async function getReportById(req, res) {
     try {
         const { id } = req.params;
@@ -42,4 +42,23 @@ async function getReportById(req, res) {
     }
 }
 
-export { getReports, getReportById };
+// POST /api/reports — persists the report Prediction.jsx computed client-side
+async function createReport(req, res) {
+    try {
+        const report = req.body;
+        if (!report || typeof report !== "object" || Array.isArray(report)) {
+            return res.status(400).json({ success: false, message: "Report body is required" });
+        }
+
+        const doc = { ...report, savedAt: new Date() };
+        delete doc._id; // never trust a client-supplied _id
+
+        const result = await collection().insertOne(doc);
+        res.status(201).json({ success: true, id: result.insertedId, data: doc });
+    } catch (err) {
+        console.error("createReport failed:", err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+}
+
+export { getReports, getReportById, createReport };

@@ -4,8 +4,12 @@
  * Single place where every page reads/writes water-quality data.
  *
  * Points to ESP32/backend bridge at 192.168.1.9:4000
- * Actual endpoint: POST /api/data
+ * Actual endpoint: GET /api/data
  * Response format: { success: true, data: { temperature, tds, ph, turbidity, dissolved_oxygen } }
+ *
+ * Also reads the ML agent's predictions (real per-parameter confidence)
+ * from GET /api/agentdata, which serves the latest document the agent
+ * wrote to the `agent_responses` Mongo collection.
  *
  * Offline-first: if backend unreachable, returns ZERO_METRICS so UI never crashes.
  * Reports always persist to localStorage; synced to backend when reachable.
@@ -41,6 +45,11 @@ export const ZERO_CONFIDENCE = {
   tds: 0,
 };
 
+// Rolling in-memory buffer of live readings for this browser session,
+// used to drive the live-stream chart. Not persisted — refreshes on reload.
+const LIVE_BUFFER_MAX = 60;
+let liveHistoryBuffer = [];
+
 async function safeFetch(path, options = { method: "GET" }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -60,26 +69,22 @@ async function safeFetch(path, options = { method: "GET" }) {
   }
 }
 
-/** 
+/**
  * Poll-friendly: current sensor snapshot from ESP32.
  * Hits GET /api/data (backend reads directly from sensors).
  * Returns ZERO_METRICS if backend unreachable.
+ * Also appends the reading to the in-memory live-chart buffer.
  */
 export async function fetchLiveReadings() {
   const response = await safeFetch("/api/data", { method: "GET" });
-  
-  if (!response) {
-    return { ...ZERO_METRICS, connected: false };
-  }
 
-  // Backend response: { success: true, data: { temperature, tds, ph, turbidity, dissolved_oxygen } }
-  if (!response.success || !response.data) {
+  if (!response || !response.success || !response.data) {
     return { ...ZERO_METRICS, connected: false };
   }
 
   const { temperature, tds, ph, turbidity, dissolved_oxygen } = response.data;
-  
-  return {
+
+  const point = {
     ph: ph ?? 0,
     turbidity: turbidity ?? 0,
     dissolvedOxygen: dissolved_oxygen ?? 0,
@@ -88,30 +93,76 @@ export async function fetchLiveReadings() {
     timestamp: new Date().toISOString(),
     connected: true,
   };
+
+  liveHistoryBuffer = [...liveHistoryBuffer, point].slice(-LIVE_BUFFER_MAX);
+  return point;
+}
+
+/**
+ * Latest ML prediction from the agent: per-parameter confidence + predicted
+ * values, read from GET /api/agentdata (backed by the `agent_responses`
+ * Mongo collection). Returns connected:false if the agent hasn't posted
+ * anything yet or the backend is unreachable.
+ */
+export async function fetchAgentData() {
+  const response = await safeFetch("/api/agentdata", { method: "GET" });
+  if (!response || !response.success || !response.data) {
+    return { connected: false, predictionReady: false, parameters: null };
+  }
+  // Confidence lives under future_water_quality.parameters — ml.prediction
+  // only holds raw unlabelled arrays, and ml.parameters doesn't exist.
+  const { future_water_quality, prediction_ready } = response.data;
+  return {
+    connected: true,
+    predictionReady: !!prediction_ready,
+    parameters: future_water_quality?.parameters || null,
+  };
+}
+
+// Maps the agent's { pH, turbidity, temperature, dissolved_oxygen, TDS }
+// shape onto the app's { ph, turbidity, temperature, dissolvedOxygen, tds }
+// keys, converting 0–1 confidence to a 0–100 percentage.
+function mapAgentConfidence(parameters) {
+  if (!parameters) return null;
+  return {
+    ph: Math.round((parameters.pH?.confidence ?? 0) * 100),
+    turbidity: Math.round((parameters.turbidity?.confidence ?? 0) * 100),
+    dissolvedOxygen: Math.round((parameters.dissolved_oxygen?.confidence ?? 0) * 100),
+    temperature: Math.round((parameters.temperature?.confidence ?? 0) * 100),
+    tds: Math.round((parameters.TDS?.confidence ?? 0) * 100),
+  };
 }
 
 /**
  * Dashboard summary: total tests, quality score, confidence per parameter,
  * recommendations, and issues.
  *
- * When backend is unreachable, derives best-effort snapshot from most recent
- * locally saved test. With no local history, everything holds at zero.
+ * Confidence prefers the ML agent's real per-parameter confidence
+ * (GET /api/agentdata); falls back to the heuristic spread-based estimate
+ * only if the agent hasn't posted a prediction yet.
+ *
+ * When the sensor backend is unreachable, derives best-effort snapshot from
+ * most recent locally saved test. With no local history, everything holds
+ * at zero.
  */
 export async function fetchDashboardStats() {
-  // Try to get fresh data from backend
   const data = await safeFetch("/api/data", { method: "GET" });
-  
+
   if (data && data.success && data.data) {
     const { temperature, tds, ph, turbidity, dissolved_oxygen } = data.data;
     const evaluation = evaluateWaterQuality({ ph, turbidity, temperature, dissolvedOxygen: dissolved_oxygen, tds });
     const recommendations = generateRecommendations(evaluation);
-    const confidence = estimateConfidenceMap({
-      ph: { min: ph, max: ph },
-      turbidity: { min: turbidity, max: turbidity },
-      dissolvedOxygen: { min: dissolved_oxygen, max: dissolved_oxygen },
-      temperature: { min: temperature, max: temperature },
-      tds: { min: tds, max: tds },
-    });
+
+    const agent = await fetchAgentData();
+    const confidence =
+      mapAgentConfidence(agent.parameters) ||
+      estimateConfidenceMap({
+        ph: { min: ph, max: ph },
+        turbidity: { min: turbidity, max: turbidity },
+        dissolvedOxygen: { min: dissolved_oxygen, max: dissolved_oxygen },
+        temperature: { min: temperature, max: temperature },
+        tds: { min: tds, max: tds },
+      });
 
     return {
       connected: true,
@@ -160,18 +211,29 @@ export async function fetchRecentPredictions(limit = 6) {
   };
 }
 
-/** Historical time-series for the live chart (last 30 points from local cache). */
+/**
+ * Historical time-series for the live chart. Prefers the real polled
+ * readings collected this session (via fetchLiveReadings); falls back to
+ * saved reports if nothing has streamed in yet (e.g. right after a reload).
+ */
 export async function fetchHistorySeries(points = 30) {
+  if (liveHistoryBuffer.length > 0) {
+    return { connected: true, series: liveHistoryBuffer.slice(-points) };
+  }
+
   const local = getLocalReports();
-  const series = local.slice(0, points).map((r) => ({
-    timestamp: r.timestamp,
-    ph: r.ph,
-    turbidity: r.turbidity,
-    temperature: r.temperature,
-    dissolvedOxygen: r.dissolvedOxygen,
-    tds: r.tds,
-  }));
-  return { connected: true, series };
+  const series = local
+    .slice(0, points)
+    .reverse()
+    .map((r) => ({
+      timestamp: r.timestamp,
+      ph: r.ph,
+      turbidity: r.turbidity,
+      temperature: r.temperature,
+      dissolvedOxygen: r.dissolvedOxygen,
+      tds: r.tds,
+    }));
+  return { connected: local.length > 0, series };
 }
 
 /** Notify backend that a test session has started (best-effort). */
@@ -214,8 +276,8 @@ export async function getReports() {
   const local = getLocalReports();
   if (!remote) return { connected: false, items: local };
 
-  const remoteItems = Array.isArray(remote) ? remote : remote.items || [];
-  const remoteIds = new Set(remoteItems.map((r) => r.id));
+  const remoteItems = Array.isArray(remote) ? remote : remote.items || remote.data || [];
+  const remoteIds = new Set(remoteItems.map((r) => r.id || r._id));
   const localOnly = local.filter((r) => !remoteIds.has(r.id));
   return { connected: true, items: [...remoteItems, ...localOnly] };
 }
@@ -285,7 +347,8 @@ export function generateRecommendations({ issues } = { issues: [] }) {
 
 /**
  * Heuristic confidence (0-100) for a single metric, based on spread
- * relative to the safe range.
+ * relative to the safe range. Used only as a fallback when the ML agent
+ * hasn't posted a prediction yet — see fetchDashboardStats.
  */
 function estimateConfidence(range, safeRange) {
   if (!range) return 0;
