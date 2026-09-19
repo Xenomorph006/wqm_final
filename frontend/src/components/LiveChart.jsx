@@ -24,14 +24,14 @@ function LiveChart({ series = [], connected = false }) {
   const paths = useMemo(() => {
     // Ensure we always have at least 2 points for a valid line
     // Ensure we always have at least 2 points for a valid line.
-// A single real point used to get thrown away in favor of [{}, {}] —
-// duplicate it instead so the very first live reading actually shows up.
-const points =
-  series && series.length > 1
-    ? series
-    : series && series.length === 1
-    ? [series[0], series[0]]
-    : [{}, {}];
+    // A single real point used to get thrown away in favor of [{}, {}] —
+    // duplicate it instead so the very first live reading actually shows up.
+    const points =
+      series && series.length > 1
+        ? series
+        : series && series.length === 1
+          ? [series[0], series[0]]
+          : [{}, {}];
     const n = points.length;
 
     return Object.entries(METRIC_META).map(([key, meta]) => {
