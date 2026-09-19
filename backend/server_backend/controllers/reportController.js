@@ -61,4 +61,32 @@ async function createReport(req, res) {
     }
 }
 
-export { getReports, getReportById, createReport };
+// DELETE /api/reports/:id — matches either Mongo's _id or the client-generated testId/id
+async function deleteReport(req, res) {
+    try {
+        const { id } = req.params;
+        const query = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { testId: id };
+        const result = await collection().deleteOne(query);
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ success: false, message: "Report not found" });
+        }
+        res.json({ success: true, id });
+    } catch (err) {
+        console.error("deleteReport failed:", err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+}
+
+// DELETE /api/reports — wipes every saved report from this collection
+async function deleteAllReports(req, res) {
+    try {
+        const result = await collection().deleteMany({});
+        res.json({ success: true, deletedCount: result.deletedCount });
+    } catch (err) {
+        console.error("deleteAllReports failed:", err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+}
+
+export { getReports, getReportById, createReport, deleteReport, deleteAllReports };

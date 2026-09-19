@@ -3,7 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { collectAndForward, getLatestReading } from "./controllers/Realtimecontroller.js";
 import { startTest } from "./controllers/testController.js";
-import { getReports, getReportById, createReport } from "./controllers/reportController.js";
+import { getReports, getReportById, createReport, deleteReport, deleteAllReports } from "./controllers/reportController.js";
 import { getLatestAgentResponse } from "./controllers/agentController.js";
 import { connectDB } from "./config/db.js";
 dotenv.config();
@@ -82,6 +82,8 @@ app.post("/api/tests/start", startTest);
 app.get("/api/reports", getReports);
 app.get("/api/reports/:id", getReportById);
 app.post("/api/reports", createReport);
+app.delete("/api/reports/:id", deleteReport);
+app.delete("/api/reports", deleteAllReports);
 
 async function start() {
     try {

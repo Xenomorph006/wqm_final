@@ -15,26 +15,28 @@ import "./App.css";
 function App() {
   const location = useLocation();
   const isDashboard = location.pathname === "/dashboard";
-
   return (
-    <div className="app">
-      <Navbar />
 
-      <div key={location.pathname} className="route-transition">
-        <Routes location={location}>
-          <Route path="/" element={<Home />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/prediction" element={<Prediction />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/reports/current" element={<Reports />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-        </Routes>
-      </div>
 
-      {!isDashboard && <Footer />}
-    </div>
+        <div className="app">
+          <Navbar />
+
+          <div key={location.pathname} className="route-transition">
+            <Routes location={location}>
+              <Route path="/" element={<Home />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/prediction" element={<Prediction />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/reports/current" element={<Reports />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+            </Routes>
+          </div>
+
+          {!isDashboard && <Footer />}
+        </div>
   );
 }
+
 
 export default App;
