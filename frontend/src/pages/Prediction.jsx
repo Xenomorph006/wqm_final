@@ -30,7 +30,7 @@ function elapsedLabel(seconds) {
 }
 
 function Prediction() {
-  const [status, setStatus] = useState("idle"); // idle | running | done
+  const [status, setStatus] = useState("idle"); // idle | running | saving | done
   const [connected, setConnected] = useState(false);
   const [live, setLive] = useState(null);
   const [elapsed, setElapsed] = useState(0);
@@ -67,7 +67,10 @@ function Prediction() {
   const stopTest = async () => {
     clearInterval(intervalRef.current);
     clearInterval(timerRef.current);
-    setStatus("done");
+    // Brief transitional state instead of jumping straight to "done" — the
+    // report render branch needs `report` to be populated first, and that
+    // only happens after the saveReport() await below resolves.
+    setStatus("saving");
 
     const ranges = {};
     METRIC_KEYS.forEach((k) => {
@@ -89,7 +92,7 @@ function Prediction() {
     };
 
     const result = classifyQuality(avgReadings);
-    const { status, riskLevel, issues } = evaluateWaterQuality(avgReadings);
+    const { status: verdictStatus, riskLevel, issues } = evaluateWaterQuality(avgReadings);
     const confidence = estimateConfidenceMap(ranges);
     const recommendations = generateRecommendations({ issues });
 
@@ -99,7 +102,7 @@ function Prediction() {
       durationSec: elapsed,
       ranges,
       result,
-      status,
+      status: verdictStatus,
       riskLevel,
       issues,
       confidence,
@@ -107,8 +110,11 @@ function Prediction() {
       backendConnected: connected,
     };
 
+    // Save first, then flip the view — report and status land together so
+    // the "done" branch never renders before report data actually exists.
     const saved = await saveReport(finalReport);
     setReport(saved);
+    setStatus("done");
   };
 
   const resetTest = () => {
@@ -125,18 +131,22 @@ function Prediction() {
     };
   }, []);
 
+  const showReport = status === "done" && report;
+
   return (
     <div className="page" style={{ backgroundImage: `url(${bgImage})` }}>
       <div className="overlay"></div>
 
       <div className="content predict-content">
-        {status !== "done" ? (
+        {!showReport ? (
           <div className="form-container test-panel">
             <h2>Water Quality Test</h2>
             <p className="panel-sub">
               {status === "idle"
                 ? "Press start to begin sampling from your ESP32 sensor array. We'll track the min, max and average of every metric until you stop the test."
-                : "Sampling in progress — keep the sensor submerged until you stop the test."}
+                : status === "running"
+                ? "Sampling in progress — keep the sensor submerged until you stop the test."
+                : "Saving your report…"}
             </p>
 
             {status === "running" && (
@@ -164,8 +174,10 @@ function Prediction() {
 
             {status === "idle" ? (
               <button onClick={startTest} className="start-btn">▶ Start Test</button>
-            ) : (
+            ) : status === "running" ? (
               <button onClick={stopTest} className="stop-btn">■ Stop &amp; Save Report</button>
+            ) : (
+              <button className="stop-btn" disabled>Saving…</button>
             )}
           </div>
         ) : (
