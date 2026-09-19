@@ -2,6 +2,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { collectAndForward, getLatestReading } from "./controllers/Realtimecontroller.js";
+import { startTest, getTestStatus } from "./controllers/testController.js";
+import { getReports, getReportById } from "./controllers/reportController.js";
+import { connectDB } from "./config/db.js";
 dotenv.config();
 
 const app = express();
@@ -82,6 +85,10 @@ app.get("/api/data", (req, res) => {
         data: latest
     });
 });
+//Agent response to frontend
+app.get("/api/agentdata", (req, res) => {
+
+});
 // Manually trigger one collect-from-backend -> forward-to-agent cycle.
 app.post("/api/collect", async (req, res) => {
     try {
@@ -93,17 +100,34 @@ app.post("/api/collect", async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Realtime proxy server running at http://localhost:${PORT}`);
-    console.log(`Forwarding to backend: ${BACKEND_URL}`);
+app.post("/api/tests/start", startTest);
+app.get("/api/tests/:id/status", getTestStatus);
 
-    // Automatic background polling: collect from BACKEND_URL, push to DEST_URL.
-    if (POLL_INTERVAL_MS > 0) {
-        console.log(`Auto-collecting every ${POLL_INTERVAL_MS}ms -> ${DEST_URL}`);
-        setInterval(() => {
-            collectAndForward().catch((err) => {
-                console.error("Auto collect-and-forward failed:", err.message);
-            });
-        }, POLL_INTERVAL_MS);
+// Report endpoints
+app.get("/api/reports", getReports);
+app.get("/api/reports/:id", getReportById);
+
+async function start() {
+    try {
+        await connectDB();
+    } catch (err) {
+        console.error("Failed to connect to MongoDB:", err.message);
+        process.exit(1);
     }
-});
+
+    app.listen(PORT, () => {
+        console.log(`Realtime proxy server running at http://localhost:${PORT}`);
+        console.log(`Forwarding to backend: ${BACKEND_URL}`);
+
+        if (POLL_INTERVAL_MS > 0) {
+            console.log(`Auto-collecting every ${POLL_INTERVAL_MS}ms -> ${DEST_URL}`);
+            setInterval(() => {
+                collectAndForward().catch((err) => {
+                    console.error("Auto collect-and-forward failed:", err.message);
+                });
+            }, POLL_INTERVAL_MS);
+        }
+    });
+}
+
+start();

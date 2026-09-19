@@ -41,7 +41,7 @@ export const ZERO_CONFIDENCE = {
   tds: 0,
 };
 
-async function safeFetch(path, options = {}) {
+async function safeFetch(path, options = { method: "GET" }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
