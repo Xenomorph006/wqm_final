@@ -27,29 +27,14 @@ class AgentService:
         tds: float,
     ) -> dict:
 
-        result = self.agent.process_observation(
-            ph=ph,
-            turbidity=turbidity,
-            temperature=temperature,
-            dissolved_oxygen=dissolved_oxygen,
-            tds=tds,
-        )
-
-        fish_recommendation = (
-            self.fish_recommender.recommend(
+        result = (
+            self.agent.process_observation(
                 ph=ph,
                 turbidity=turbidity,
                 temperature=temperature,
                 dissolved_oxygen=dissolved_oxygen,
                 tds=tds,
-                prediction=result.get(
-                    "prediction"
-                ),
             )
-        )
-
-        result["fish_recommendation"] = (
-            fish_recommendation
         )
 
         return result

@@ -53,6 +53,8 @@ class WaterQualityAgent:
             "Water Quality Agent ready"
         )
 
+    
+
     # ==================================================
     # STATUS
     # ==================================================
@@ -740,6 +742,9 @@ class WaterQualityAgent:
         """
         Evaluate fish suitability using current
         and predicted future water-quality values.
+
+        Only the highest-scoring suitable fish
+        is returned in recommended_fish.
         """
 
         # ==============================================
@@ -886,75 +891,105 @@ class WaterQualityAgent:
         # SPECIES EVALUATION
         # ==============================================
 
-        recommended_fish = []
+        suitable_fish = []
         unsuitable_fish = []
 
         for species, profile in fish_profiles.items():
 
             checks = []
 
-            # Current pH
+            # ------------------------------------------
+            # CURRENT pH
+            # ------------------------------------------
+
             checks.append(
                 profile["ph"][0]
                 <= current_ph
                 <= profile["ph"][1]
             )
 
-            # Future pH
+            # ------------------------------------------
+            # FUTURE pH
+            # ------------------------------------------
+
             checks.append(
                 profile["ph"][0]
                 <= future_ph
                 <= profile["ph"][1]
             )
 
-            # Current temperature
+            # ------------------------------------------
+            # CURRENT TEMPERATURE
+            # ------------------------------------------
+
             checks.append(
                 profile["temperature"][0]
                 <= current_temperature
                 <= profile["temperature"][1]
             )
 
-            # Future temperature
+            # ------------------------------------------
+            # FUTURE TEMPERATURE
+            # ------------------------------------------
+
             checks.append(
                 profile["temperature"][0]
                 <= future_temperature
                 <= profile["temperature"][1]
             )
 
-            # Current DO
+            # ------------------------------------------
+            # CURRENT DO
+            # ------------------------------------------
+
             checks.append(
                 current_dissolved_oxygen
                 >= profile["dissolved_oxygen"]
             )
 
-            # Future DO
+            # ------------------------------------------
+            # FUTURE DO
+            # ------------------------------------------
+
             checks.append(
                 future_dissolved_oxygen
                 >= profile["dissolved_oxygen"]
             )
 
-            # Current turbidity
+            # ------------------------------------------
+            # CURRENT TURBIDITY
+            # ------------------------------------------
+
             checks.append(
                 profile["turbidity"][0]
                 <= current_turbidity
                 <= profile["turbidity"][1]
             )
 
-            # Future turbidity
+            # ------------------------------------------
+            # FUTURE TURBIDITY
+            # ------------------------------------------
+
             checks.append(
                 profile["turbidity"][0]
                 <= future_turbidity
                 <= profile["turbidity"][1]
             )
 
-            # Current TDS
+            # ------------------------------------------
+            # CURRENT TDS
+            # ------------------------------------------
+
             checks.append(
                 profile["tds"][0]
                 <= current_tds
                 <= profile["tds"][1]
             )
 
-            # Future TDS
+            # ------------------------------------------
+            # FUTURE TDS
+            # ------------------------------------------
+
             checks.append(
                 profile["tds"][0]
                 <= future_tds
@@ -1034,12 +1069,16 @@ class WaterQualityAgent:
                 "reason": reason,
             }
 
+            # ==========================================
+            # CLASSIFY FISH
+            # ==========================================
+
             if suitability in (
                 "High",
                 "Medium",
             ):
 
-                recommended_fish.append(
+                suitable_fish.append(
                     fish_result
                 )
 
@@ -1048,6 +1087,25 @@ class WaterQualityAgent:
                 unsuitable_fish.append(
                     fish_result
                 )
+
+        # ==============================================
+        # SELECT ONLY ONE FISH
+        # ==============================================
+
+        if suitable_fish:
+
+            suitable_fish.sort(
+                key=lambda fish: fish["score"],
+                reverse=True,
+            )
+
+            recommended_fish = [
+                suitable_fish[0]
+            ]
+
+        else:
+
+            recommended_fish = []
 
         # ==============================================
         # OVERALL RECOMMENDATION
