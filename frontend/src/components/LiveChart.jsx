@@ -22,23 +22,39 @@ function LiveChart({ series = [], connected = false }) {
   };
 
   const paths = useMemo(() => {
-    const points = series.length > 1 ? series : [{}, {}]; // at least a flat zero line
+    // Ensure we always have at least 2 points for a valid line
+    const points = series && series.length > 1 ? series : [{}, {}];
     const n = points.length;
 
     return Object.entries(METRIC_META).map(([key, meta]) => {
-      const values = points.map((p) => Number(p[key]) || 0);
-      const max = Math.max(...values, meta.safeRange[1] * 1.2, 1);
+      // Extract numeric values from all points
+      const values = points.map((p) => {
+        const val = Number(p[key]);
+        return isNaN(val) || val === null || val === undefined ? 0 : val;
+      });
+
+      // Calculate dynamic max based on actual data + safe range
+      const dataMax = Math.max(...values);
+      const safeMax = meta.safeRange[1] * 1.2;
+      const minScale = 1;
+      const max = Math.max(dataMax, safeMax, minScale);
+
+      // Build SVG path
       const d = values
         .map((v, i) => {
-          const x = PAD + (i / (n - 1)) * (WIDTH - PAD * 2);
+          const x = PAD + (i / Math.max(n - 1, 1)) * (WIDTH - PAD * 2);
           const y = HEIGHT - PAD - (v / max) * (HEIGHT - PAD * 2);
           return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
         })
         .join(" ");
-      const last = values[values.length - 1];
-      return { key, meta, d, last };
+
+      const last = values[values.length - 1] || 0;
+
+      return { key, meta, d, last, max };
     });
   }, [series]);
+
+  const hasData = series && series.length > 0;
 
   return (
     <div className="live-chart">
@@ -58,7 +74,9 @@ function LiveChart({ series = [], connected = false }) {
             >
               <span className="chip-swatch" />
               {meta.label}
-              <span className="chip-value">{connected ? last.toFixed(2) : "0.00"}</span>
+              <span className="chip-value">
+                {hasData && connected ? last.toFixed(2) : "0.00"}
+              </span>
             </button>
           ))}
         </div>
@@ -71,8 +89,16 @@ function LiveChart({ series = [], connected = false }) {
           </pattern>
         </defs>
         <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill="url(#gridPattern)" />
-        <line x1={PAD} y1={HEIGHT - PAD} x2={WIDTH - PAD} y2={HEIGHT - PAD} stroke="rgba(255,255,255,0.12)" />
+        <line
+          x1={PAD}
+          y1={HEIGHT - PAD}
+          x2={WIDTH - PAD}
+          y2={HEIGHT - PAD}
+          stroke="rgba(255,255,255,0.12)"
+          strokeWidth="1"
+        />
 
+        {/* Render active metric lines */}
         {paths
           .filter((p) => active.has(p.key))
           .map(({ key, meta, d }) => (
@@ -85,11 +111,14 @@ function LiveChart({ series = [], connected = false }) {
               strokeLinecap="round"
               strokeLinejoin="round"
               className="chart-line"
-              style={{ filter: connected ? `drop-shadow(0 0 6px ${meta.color})` : "none" }}
+              style={{
+                filter: connected && hasData ? `drop-shadow(0 0 6px ${meta.color})` : "none",
+              }}
             />
           ))}
 
-        {connected && (
+        {/* Sweep line (right edge, only when live) */}
+        {connected && hasData && (
           <line
             x1={WIDTH - PAD}
             y1={PAD}
@@ -106,6 +135,12 @@ function LiveChart({ series = [], connected = false }) {
         <p className="chart-empty-note">
           No sensor data yet — all metrics will hold at zero and animate in automatically
           once the ESP32 backend connects.
+        </p>
+      )}
+
+      {connected && !hasData && (
+        <p className="chart-empty-note">
+          Connected, waiting for first sensor reading...
         </p>
       )}
     </div>

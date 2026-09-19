@@ -1,23 +1,18 @@
 /**
- * dataService.js
+ * dataService.js (FIXED)
  * -----------------------------------------------------------------------
  * Single place where every page reads/writes water-quality data.
  *
- * Point VITE_API_URL at your ESP32 / server bridge, e.g. in a .env file:
- *   VITE_API_URL=http://192.168.1.50:5000
+ * Points to ESP32/backend bridge at 192.168.1.9:4000
+ * Actual endpoint: POST /api/data
+ * Response format: { success: true, data: { temperature, tds, ph, turbidity, dissolved_oxygen } }
  *
- * Until a backend is reachable, every "live" call resolves with a
- * ZERO_METRICS object instead of throwing — so the UI always renders a
- * calm, empty state rather than an error screen. The moment the backend
- * responds, real numbers flow in and the UI animates up from zero.
- *
- * Test reports are always persisted locally (localStorage) as a durable
- * cache, and are also pushed to the backend when one is reachable, so
- * the Reports page never loses history even offline.
+ * Offline-first: if backend unreachable, returns ZERO_METRICS so UI never crashes.
+ * Reports always persist to localStorage; synced to backend when reachable.
  * -----------------------------------------------------------------------
  */
 
-const API_URL = import.meta.env?.VITE_API_URL || "http://localhost:8000";
+const API_URL = import.meta.env?.VITE_API_URL || "http://192.168.1.9:4000";
 const REPORTS_KEY = "wqs_reports_v1";
 const TIMEOUT_MS = 3500;
 
@@ -60,43 +55,75 @@ async function safeFetch(path, options = {}) {
     return await res.json();
   } catch (err) {
     clearTimeout(timer);
+    console.warn(`API call failed: ${err.message}`);
     return null; // caller decides the fallback
   }
 }
 
-/** Poll-friendly: current sensor snapshot. Returns ZERO_METRICS if backend is unreachable. */
+/** 
+ * Poll-friendly: current sensor snapshot from ESP32.
+ * Hits GET /api/data (backend reads directly from sensors).
+ * Returns ZERO_METRICS if backend unreachable.
+ */
 export async function fetchLiveReadings() {
-  const data = await safeFetch("/api/v1/process",{
-    method:  "POST",
-    body:
-    JSON.stringify(sensorData),});
-  if (!data) return { ...ZERO_METRICS, connected: false };
-  return { ...ZERO_METRICS, ...data, connected: true };
+  const response = await safeFetch("/api/data", { method: "GET" });
+  
+  if (!response) {
+    return { ...ZERO_METRICS, connected: false };
+  }
+
+  // Backend response: { success: true, data: { temperature, tds, ph, turbidity, dissolved_oxygen } }
+  if (!response.success || !response.data) {
+    return { ...ZERO_METRICS, connected: false };
+  }
+
+  const { temperature, tds, ph, turbidity, dissolved_oxygen } = response.data;
+  
+  return {
+    ph: ph ?? 0,
+    turbidity: turbidity ?? 0,
+    dissolvedOxygen: dissolved_oxygen ?? 0,
+    temperature: temperature ?? 0,
+    tds: tds ?? 0,
+    timestamp: new Date().toISOString(),
+    connected: true,
+  };
 }
 
 /**
- * Dashboard summary: total tests, avg quality score, per-parameter prediction
- * confidence, and the agent's latest recommendation messages.
+ * Dashboard summary: total tests, quality score, confidence per parameter,
+ * recommendations, and issues.
  *
- * When the backend is unreachable we don't fabricate numbers — instead we
- * derive a best-effort snapshot from the most recently *locally saved* test
- * (if any), so the dashboard still reflects something real. With no local
- * history either, everything holds at zero, matching the rest of the app.
+ * When backend is unreachable, derives best-effort snapshot from most recent
+ * locally saved test. With no local history, everything holds at zero.
  */
 export async function fetchDashboardStats() {
-  const data = await safeFetch("/api/v1/ml/status");
-  if (data) {
+  // Try to get fresh data from backend
+  const data = await safeFetch("/api/data", { method: "GET" });
+  
+  if (data && data.success && data.data) {
+    const { temperature, tds, ph, turbidity, dissolved_oxygen } = data.data;
+    const evaluation = evaluateWaterQuality({ ph, turbidity, temperature, dissolvedOxygen: dissolved_oxygen, tds });
+    const recommendations = generateRecommendations(evaluation);
+    const confidence = estimateConfidenceMap({
+      ph: { min: ph, max: ph },
+      turbidity: { min: turbidity, max: turbidity },
+      dissolvedOxygen: { min: dissolved_oxygen, max: dissolved_oxygen },
+      temperature: { min: temperature, max: temperature },
+      tds: { min: tds, max: tds },
+    });
+
     return {
       connected: true,
-      totalTests: 0,
-      qualityScore: 0,
-      confidence: ZERO_CONFIDENCE,
-      recommendations: [],
-      issues: [],
-      ...data,
+      totalTests: 1,
+      qualityScore: evaluation.status === "Healthy" ? 100 : evaluation.status === "Warning" ? 60 : 30,
+      confidence,
+      recommendations,
+      issues: evaluation.issues,
     };
   }
 
+  // Fallback: use local reports
   const local = getLocalReports();
   const latest = local[0];
 
@@ -119,31 +146,35 @@ export async function fetchDashboardStats() {
     totalTests: local.length,
     qualityScore,
     confidence: latest.confidence || ZERO_CONFIDENCE,
-    // Only real, issue-driven messages — never the "all stable" filler line —
-    // so the dashboard can pop these up one at a time as alerts.
     recommendations: latest.issues && latest.issues.length > 0 ? latest.recommendations || [] : [],
     issues: latest.issues || [],
   };
 }
 
-/** Most recent N predictions/tests, newest first — sourced from backend DB. */
+/** Most recent N test reports from localStorage. */
 export async function fetchRecentPredictions(limit = 6) {
-  const data = await safeFetch("/api/v1/process-batch",{
-    method:  "POST",
-    body:
-    JSON.stringify(sensorData),});
-  if (!data) return { connected: false, items: [] };
-  return { connected: true, items: Array.isArray(data) ? data : data.items || [] };
+  const local = getLocalReports();
+  return {
+    connected: true,
+    items: local.slice(0, limit),
+  };
 }
 
-/** Historical time-series window for the live chart, e.g. last 30 points. */
+/** Historical time-series for the live chart (last 30 points from local cache). */
 export async function fetchHistorySeries(points = 30) {
-  const data = await safeFetch(`/api/v1/ml/status`);
-  if (!data) return { connected: false, series: [] };
-  return { connected: true, series: Array.isArray(data) ? data : data.series || [] };
+  const local = getLocalReports();
+  const series = local.slice(0, points).map((r) => ({
+    timestamp: r.timestamp,
+    ph: r.ph,
+    turbidity: r.turbidity,
+    temperature: r.temperature,
+    dissolvedOxygen: r.dissolvedOxygen,
+    tds: r.tds,
+  }));
+  return { connected: true, series };
 }
 
-/** Tell the backend a test/session has started (best-effort, ignored if offline). */
+/** Notify backend that a test session has started (best-effort). */
 export async function notifyTestStart() {
   return safeFetch("/api/tests/start", { method: "POST" });
 }
@@ -155,12 +186,13 @@ export async function saveReport(report) {
   const updated = [withId, ...local];
   localStorage.setItem(REPORTS_KEY, JSON.stringify(updated));
 
-  const remote = await safeFetch("/api/reports", {
+  // Try to sync to backend (best-effort)
+  await safeFetch("/api/reports", {
     method: "POST",
     body: JSON.stringify(report),
   });
 
-  return remote || withId;
+  return withId;
 }
 
 function getLocalReports() {
@@ -171,12 +203,12 @@ function getLocalReports() {
   }
 }
 
-/** Wipes every locally cached report from this browser. Does not touch the backend DB. */
+/** Wipes every locally cached report from this browser. */
 export function clearLocalReports() {
   localStorage.removeItem(REPORTS_KEY);
 }
 
-/** All reports, backend-first, merged with any local-only cache. */
+/** All reports: backend-first, merged with local-only cache. */
 export async function getReports() {
   const remote = await safeFetch("/api/reports");
   const local = getLocalReports();
@@ -188,6 +220,7 @@ export async function getReports() {
   return { connected: true, items: [...remoteItems, ...localOnly] };
 }
 
+/** Classify water quality based on three key metrics. */
 export function classifyQuality({ ph, turbidity, dissolvedOxygen }) {
   const phOk = ph >= 6.5 && ph <= 8.5;
   const turbidityOk = turbidity <= 5;
@@ -199,9 +232,8 @@ export function classifyQuality({ ph, turbidity, dissolvedOxygen }) {
 }
 
 /**
- * Mirrors the water-quality agent's rules (see backend/agent_backend
- * app/agent/water_agent.py) so the frontend can label a test with the same
- * status / risk level / issue list even when it only has the raw averages.
+ * Evaluate water quality against safe ranges.
+ * Returns: { status, riskLevel, issues }
  */
 export function evaluateWaterQuality({ ph, turbidity, temperature, dissolvedOxygen, tds }) {
   const issues = [];
@@ -241,7 +273,7 @@ const RECOMMENDATION_MAP = {
   "High TDS": "Total dissolved solids are high — consider partial water replacement or filtration.",
 };
 
-/** Human-readable recommendation messages, derived from an evaluation's issue list. */
+/** Human-readable recommendations derived from issues. */
 export function generateRecommendations({ issues } = { issues: [] }) {
   if (!issues || issues.length === 0) {
     return ["Water quality is currently stable and within the safe operating range."];
@@ -252,9 +284,8 @@ export function generateRecommendations({ issues } = { issues: [] }) {
 }
 
 /**
- * Heuristic confidence (0-100) for a single metric, based on how tightly the
- * readings held together relative to that metric's safe band — a wide swing
- * during the test lowers confidence in the average being representative.
+ * Heuristic confidence (0-100) for a single metric, based on spread
+ * relative to the safe range.
  */
 function estimateConfidence(range, safeRange) {
   if (!range) return 0;
@@ -266,7 +297,7 @@ function estimateConfidence(range, safeRange) {
   return Math.round(Math.max(35, Math.min(99, score)));
 }
 
-/** Per-parameter confidence map for a finished test's min/max/avg ranges. */
+/** Per-parameter confidence map for a test's min/max/avg ranges. */
 export function estimateConfidenceMap(ranges) {
   const map = {};
   Object.keys(METRIC_META).forEach((k) => {
