@@ -53,6 +53,8 @@ class WaterQualityAgent:
             "Water Quality Agent ready"
         )
 
+    
+
     # ==================================================
     # STATUS
     # ==================================================
@@ -728,6 +730,427 @@ class WaterQualityAgent:
             "time": self.CONTROL_TIME,
         }
 
+        # ==================================================
+    # FISH RECOMMENDATION
+    # ==================================================
+
+    def generate_fish_recommendation(
+        self,
+        current_values: dict,
+        future_evaluation: dict,
+    ) -> dict:
+        """
+        Evaluate fish suitability using current
+        and predicted future water-quality values.
+
+        Only the highest-scoring suitable fish
+        is returned in recommended_fish.
+        """
+
+        # ==============================================
+        # FISH PROFILES
+        # ==============================================
+
+        fish_profiles = {
+
+            "Tilapia": {
+                "ph": (6.5, 8.5),
+                "temperature": (24.0, 32.0),
+                "dissolved_oxygen": 3.0,
+                "turbidity": (0.0, 25.0),
+                "tds": (100.0, 1000.0),
+            },
+
+            "Rohu": {
+                "ph": (6.5, 8.5),
+                "temperature": (22.0, 32.0),
+                "dissolved_oxygen": 4.0,
+                "turbidity": (0.0, 25.0),
+                "tds": (100.0, 1000.0),
+            },
+
+            "Catla": {
+                "ph": (6.5, 8.5),
+                "temperature": (22.0, 32.0),
+                "dissolved_oxygen": 4.0,
+                "turbidity": (0.0, 25.0),
+                "tds": (100.0, 1000.0),
+            },
+
+            "Mrigal": {
+                "ph": (6.5, 8.5),
+                "temperature": (22.0, 32.0),
+                "dissolved_oxygen": 4.0,
+                "turbidity": (0.0, 25.0),
+                "tds": (100.0, 1000.0),
+            },
+
+            "Common Carp": {
+                "ph": (6.5, 9.0),
+                "temperature": (20.0, 30.0),
+                "dissolved_oxygen": 4.0,
+                "turbidity": (0.0, 25.0),
+                "tds": (100.0, 1500.0),
+            },
+
+            "Pangasius": {
+                "ph": (6.5, 8.5),
+                "temperature": (24.0, 32.0),
+                "dissolved_oxygen": 3.0,
+                "turbidity": (0.0, 25.0),
+                "tds": (100.0, 1000.0),
+            },
+        }
+
+        # ==============================================
+        # CURRENT VALUES
+        # ==============================================
+
+        current_ph = float(
+            current_values["ph"]
+        )
+
+        current_turbidity = float(
+            current_values["turbidity"]
+        )
+
+        current_temperature = float(
+            current_values["temperature"]
+        )
+
+        current_dissolved_oxygen = float(
+            current_values["dissolved_oxygen"]
+        )
+
+        current_tds = float(
+            current_values["tds"]
+        )
+
+        # ==============================================
+        # FUTURE VALUES
+        # ==============================================
+
+        predicted_parameters = (
+            future_evaluation.get(
+                "parameters",
+                {}
+            )
+        )
+
+        future_ph = float(
+            predicted_parameters["pH"][
+                "predicted_value"
+            ]
+        )
+
+        future_turbidity = float(
+            predicted_parameters["turbidity"][
+                "predicted_value"
+            ]
+        )
+
+        future_temperature = float(
+            predicted_parameters["temperature"][
+                "predicted_value"
+            ]
+        )
+
+        future_dissolved_oxygen = float(
+            predicted_parameters["dissolved_oxygen"][
+                "predicted_value"
+            ]
+        )
+
+        future_tds = float(
+            predicted_parameters["TDS"][
+                "predicted_value"
+            ]
+        )
+
+        # ==============================================
+        # CURRENT + FUTURE WATER QUALITY
+        # ==============================================
+
+        current_water_quality = {
+            "ph": current_ph,
+            "turbidity": current_turbidity,
+            "temperature": current_temperature,
+            "dissolved_oxygen": current_dissolved_oxygen,
+            "tds": current_tds,
+        }
+
+        predicted_water_quality = {
+            "ph": future_ph,
+            "turbidity": future_turbidity,
+            "temperature": future_temperature,
+            "dissolved_oxygen": future_dissolved_oxygen,
+            "tds": future_tds,
+        }
+
+        # ==============================================
+        # SPECIES EVALUATION
+        # ==============================================
+
+        suitable_fish = []
+        unsuitable_fish = []
+
+        for species, profile in fish_profiles.items():
+
+            checks = []
+
+            # ------------------------------------------
+            # CURRENT pH
+            # ------------------------------------------
+
+            checks.append(
+                profile["ph"][0]
+                <= current_ph
+                <= profile["ph"][1]
+            )
+
+            # ------------------------------------------
+            # FUTURE pH
+            # ------------------------------------------
+
+            checks.append(
+                profile["ph"][0]
+                <= future_ph
+                <= profile["ph"][1]
+            )
+
+            # ------------------------------------------
+            # CURRENT TEMPERATURE
+            # ------------------------------------------
+
+            checks.append(
+                profile["temperature"][0]
+                <= current_temperature
+                <= profile["temperature"][1]
+            )
+
+            # ------------------------------------------
+            # FUTURE TEMPERATURE
+            # ------------------------------------------
+
+            checks.append(
+                profile["temperature"][0]
+                <= future_temperature
+                <= profile["temperature"][1]
+            )
+
+            # ------------------------------------------
+            # CURRENT DO
+            # ------------------------------------------
+
+            checks.append(
+                current_dissolved_oxygen
+                >= profile["dissolved_oxygen"]
+            )
+
+            # ------------------------------------------
+            # FUTURE DO
+            # ------------------------------------------
+
+            checks.append(
+                future_dissolved_oxygen
+                >= profile["dissolved_oxygen"]
+            )
+
+            # ------------------------------------------
+            # CURRENT TURBIDITY
+            # ------------------------------------------
+
+            checks.append(
+                profile["turbidity"][0]
+                <= current_turbidity
+                <= profile["turbidity"][1]
+            )
+
+            # ------------------------------------------
+            # FUTURE TURBIDITY
+            # ------------------------------------------
+
+            checks.append(
+                profile["turbidity"][0]
+                <= future_turbidity
+                <= profile["turbidity"][1]
+            )
+
+            # ------------------------------------------
+            # CURRENT TDS
+            # ------------------------------------------
+
+            checks.append(
+                profile["tds"][0]
+                <= current_tds
+                <= profile["tds"][1]
+            )
+
+            # ------------------------------------------
+            # FUTURE TDS
+            # ------------------------------------------
+
+            checks.append(
+                profile["tds"][0]
+                <= future_tds
+                <= profile["tds"][1]
+            )
+
+            # ==========================================
+            # SUITABILITY SCORE
+            # ==========================================
+
+            score = (
+                sum(checks)
+                / len(checks)
+            )
+
+            score = round(
+                score,
+                2
+            )
+
+            percentage = round(
+                score * 100,
+                1
+            )
+
+            # ==========================================
+            # SUITABILITY LEVEL
+            # ==========================================
+
+            if score >= 0.8:
+
+                suitability = "High"
+
+            elif score >= 0.5:
+
+                suitability = "Medium"
+
+            else:
+
+                suitability = "Low"
+
+            # ==========================================
+            # REASON
+            # ==========================================
+
+            if suitability == "High":
+
+                reason = (
+                    "Current and predicted "
+                    "water-quality conditions "
+                    "are compatible with the "
+                    "species profile."
+                )
+
+            elif suitability == "Medium":
+
+                reason = (
+                    "Some current or predicted "
+                    "water-quality parameters "
+                    "require attention."
+                )
+
+            else:
+
+                reason = (
+                    "Current or predicted "
+                    "water-quality conditions "
+                    "are outside the suitable "
+                    "range for this species."
+                )
+
+            fish_result = {
+                "species": species,
+                "suitability": suitability,
+                "score": score,
+                "percentage": percentage,
+                "reason": reason,
+            }
+
+            # ==========================================
+            # CLASSIFY FISH
+            # ==========================================
+
+            if suitability in (
+                "High",
+                "Medium",
+            ):
+
+                suitable_fish.append(
+                    fish_result
+                )
+
+            else:
+
+                unsuitable_fish.append(
+                    fish_result
+                )
+
+        # ==============================================
+        # SELECT ONLY ONE FISH
+        # ==============================================
+
+        if suitable_fish:
+
+            suitable_fish.sort(
+                key=lambda fish: fish["score"],
+                reverse=True,
+            )
+
+            recommended_fish = [
+                suitable_fish[0]
+            ]
+
+        else:
+
+            recommended_fish = []
+
+        # ==============================================
+        # OVERALL RECOMMENDATION
+        # ==============================================
+
+        if recommended_fish:
+
+            overall_recommendation = (
+                "The evaluated water conditions "
+                "are suitable for freshwater "
+                "fish cultivation."
+            )
+
+        else:
+
+            overall_recommendation = (
+                "The evaluated water conditions "
+                "are currently not suitable for "
+                "the evaluated fish species."
+            )
+
+        # ==============================================
+        # FINAL FISH RESPONSE
+        # ==============================================
+
+        return {
+
+            "current_water_quality":
+                current_water_quality,
+
+            "predicted_water_quality":
+                predicted_water_quality,
+
+            "recommended_fish":
+                recommended_fish,
+
+            "unsuitable_fish":
+                unsuitable_fish,
+
+            "overall_recommendation":
+                overall_recommendation,
+
+        }
+
+
     # ==================================================
     # MAIN PROCESS
     # ==================================================
@@ -896,6 +1319,19 @@ class WaterQualityAgent:
             )
         )
 
+        fish_recommendation = (
+            self.generate_fish_recommendation(
+                current_values={
+                    "ph": ph,
+                    "turbidity": turbidity,
+                    "temperature": temperature,
+                    "dissolved_oxygen": dissolved_oxygen,
+                    "tds": tds,
+                },
+                future_evaluation=future_evaluation,
+            )
+        )
+
         # ==============================================
         # JSON SAFE ML DATA
         # ==============================================
@@ -935,6 +1371,8 @@ class WaterQualityAgent:
 
             "hardware_control":
                 hardware_control,
+
+            "fish_recommendation": fish_recommendation,
 
             "ml": {
 
