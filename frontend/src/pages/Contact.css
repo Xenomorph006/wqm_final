@@ -1,0 +1,68 @@
+.page {
+  position: relative;
+  min-height: 100vh;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.content.form-container {
+  position: relative;
+  z-index: 2;
+  color: var(--text-primary);
+  text-align: center;
+  padding: 42px 40px;
+  width: 90%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 60px;
+}
+
+.form-container h2 {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  margin-bottom: 6px;
+}
+
+.contact-sub {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.form-container form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-container textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.contact-links {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 22px;
+  flex-wrap: wrap;
+}
+
+/* Placeholder styles (cross-browser) */
+.form-container input::placeholder,
+.form-container textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+@media (max-width: 400px) {
+  .content.form-container {
+    padding: 30px 22px;
+  }
+}

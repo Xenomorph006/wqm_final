@@ -1,0 +1,163 @@
+.app {
+  min-height: 100vh;
+  font-family: var(--font-body);
+  overflow-x: hidden;
+}
+
+.route-transition {
+  animation: routeFade 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes routeFade {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================= */
+/* SHARED PAGE SHELL         */
+/* ========================= */
+
+.page,
+.home-page {
+  min-height: 100vh;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background: linear-gradient(180deg, rgba(4, 10, 18, 0.82), rgba(4, 10, 18, 0.92));
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 140px 40px 80px;
+}
+
+.content h1 {
+  font-family: var(--font-display);
+  font-size: 48px;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+}
+
+.content p {
+  font-size: 17px;
+  max-width: 600px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ========================= */
+/* 3D TILT BUTTON            */
+/* ========================= */
+
+.btn {
+  margin-top: 25px;
+  padding: 13px 34px;
+  border-radius: 999px;
+  border: 1px solid var(--border-glass-strong);
+  background: linear-gradient(135deg, rgba(31, 216, 255, 0.16), rgba(124, 109, 255, 0.14));
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, background 0.25s ease;
+  transform-style: preserve-3d;
+}
+
+.btn:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 16px 34px rgba(31, 216, 255, 0.28);
+  background: linear-gradient(135deg, rgba(31, 216, 255, 0.28), rgba(124, 109, 255, 0.22));
+}
+
+.btn:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: var(--border-glass);
+  color: var(--text-secondary);
+}
+
+.btn.ghost:hover {
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ========================= */
+/* GLASS FORM                */
+/* ========================= */
+
+.form-container {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-deep);
+}
+
+.form-container input,
+.form-container textarea {
+  width: 100%;
+  padding: 12px 14px;
+  margin: 6px 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  outline: none;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.form-container input:focus,
+.form-container textarea:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 3px rgba(31, 216, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.form-container button {
+  padding: 12px 30px;
+  margin-top: 15px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-teal));
+  color: #04121b;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-container button:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 26px rgba(31, 216, 255, 0.35);
+}
+
+.result {
+  margin-top: 20px;
+  font-size: 17px;
+  color: var(--success);
+}

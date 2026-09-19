@@ -1,0 +1,54 @@
+/* About page styles */
+.about-page .content {
+  max-width: 900px;
+  margin: 150px auto 80px;
+  padding: 52px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-deep);
+  text-align: left;
+  min-height: auto;
+}
+
+.about-page .content h2 {
+  font-family: var(--font-display);
+  font-size: 2.1rem;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.about-page .accent {
+  display: inline-block;
+  margin-bottom: 18px;
+  color: var(--accent-cyan);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.about-page .content p {
+  color: var(--text-secondary);
+  line-height: 1.8;
+  font-size: 1rem;
+  margin-bottom: 16px;
+}
+
+.about-links {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 26px;
+}
+
+/* Small screens */
+@media (max-width: 700px) {
+  .about-page .content {
+    padding: 28px;
+    margin: 130px 20px 50px;
+  }
+
+  .about-page .content h2 {
+    font-size: 1.5rem;
+  }
+}

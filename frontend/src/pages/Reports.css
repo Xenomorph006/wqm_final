@@ -1,0 +1,353 @@
+.reports-content {
+  padding-top: 150px;
+  padding-bottom: 60px;
+  align-items: stretch;
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.reports-head {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.reports-head h1 {
+  font-family: var(--font-display);
+  font-size: 34px;
+  margin-bottom: 10px;
+}
+
+.reports-head p {
+  color: var(--text-secondary);
+  font-size: 14.5px;
+  margin: 0 auto 16px;
+  max-width: 480px;
+  line-height: 1.6;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ========================================================= */
+/* Tabs: Water Reports (default)  |  Current Water Reading    */
+/* ========================================================= */
+
+.report-tabs {
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-glass);
+  border-radius: 999px;
+  padding: 5px;
+  margin: 0 auto 26px;
+  width: fit-content;
+}
+
+.report-tab {
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 9px 20px;
+  border-radius: 999px;
+  transition: 0.25s ease;
+}
+
+.report-tab:hover {
+  color: var(--text-primary);
+}
+
+.report-tab.active {
+  background: var(--accent-cyan);
+  color: #04121c;
+}
+
+/* ========================================================= */
+/* Shared reading-card layout                                 */
+/* Used by both the live "Current Water Reading" card and     */
+/* every historical entry in "Water Reports" so they speak    */
+/* the same visual language.                                  */
+/* ========================================================= */
+
+.current-reading-card,
+.reading-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 26px 28px 22px;
+  transition: border-color 0.25s ease, transform 0.25s ease;
+}
+
+.current-reading-card {
+  cursor: pointer;
+}
+
+.current-reading-card:hover {
+  border-color: var(--border-glass-strong);
+  transform: translateY(-3px);
+}
+
+.reading-card:hover {
+  border-color: var(--border-glass-strong);
+}
+
+.current-reading-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.current-reading-head h3 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  margin-bottom: 4px;
+}
+
+.report-index {
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+}
+
+.summary-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.result-badge {
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.result-badge.good { background: rgba(22, 224, 160, 0.15); color: var(--success); }
+.result-badge.moderate { background: rgba(255, 176, 32, 0.15); color: var(--warning); }
+.result-badge.poor { background: rgba(255, 77, 106, 0.15); color: var(--danger); }
+
+/* ---- Status / Risk Level / Issues, each its own topic ---- */
+
+.verdict-topics {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.verdict-topic {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.verdict-topic-label {
+  width: 78px;
+  flex-shrink: 0;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.verdict-topic .tag {
+  font-size: 12.5px;
+  padding: 6px 16px;
+}
+
+.verdict-topic--issues .tag.issues-tag {
+  padding: 6px 16px;
+}
+
+/* ---- Metric value grid (live figures or saved averages) ---- */
+
+.live-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.live-metric {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-md);
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.live-metric .metric-value {
+  font-family: var(--font-mono);
+  font-size: 19px;
+  color: var(--accent-cyan);
+}
+
+.live-metric .metric-value small {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+.live-metric .metric-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.current-reading-cta {
+  display: block;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--accent-cyan);
+  text-align: right;
+}
+
+/* ========================================================= */
+/* Water Reports list                                         */
+/* ========================================================= */
+
+.reports-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.reports-count {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.clear-history-btn {
+  background: rgba(255, 77, 106, 0.08);
+  border: 1px solid rgba(255, 77, 106, 0.3);
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.clear-history-btn:hover {
+  background: rgba(255, 77, 106, 0.15);
+}
+
+.reading-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---- Compact Status / Risk Level / Issues table (Current Water Reading) ---- */
+
+.verdict-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 18px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.verdict-table th {
+  text-align: left;
+  padding: 10px 16px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.verdict-table td {
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+
+.verdict-table .tag {
+  font-size: 11.5px;
+}
+
+.col-issues {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+.detail-toggle {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: 0.2s ease;
+  margin-top: 4px;
+}
+
+.detail-toggle:hover {
+  color: var(--text-primary);
+  border-color: var(--border-glass-strong);
+}
+
+.range-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 14px;
+}
+
+.range-table th,
+.range-table td {
+  padding: 10px 14px;
+  text-align: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.range-table th {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.range-table td:first-child,
+.range-table th:first-child {
+  text-align: left;
+  color: var(--text-secondary);
+}
+
+.empty-reports {
+  text-align: center;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 50px 30px;
+}
+
+.empty-reports p {
+  color: var(--text-muted);
+  margin-bottom: 18px;
+}
+
+@media (max-width: 600px) {
+  .reports-content { padding-top: 140px; }
+  .verdict-topic-label { width: auto; }
+}
