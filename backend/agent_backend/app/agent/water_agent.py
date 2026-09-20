@@ -683,24 +683,31 @@ class WaterQualityAgent:
         future_evaluation: dict,
     ) -> dict:
 
-    # ==============================================
-    # GET CURRENT + FUTURE ISSUES
-    # ==============================================
+        # ==============================================
+        # HARDWARE ACTION WHITELIST
+        # ==============================================
+
+        allowed_actions = {
+            "Start Cooling System",
+            "Release Acid",
+            "Release Base",
+        }
+
+        # ==============================================
+        # GET CURRENT + FUTURE ISSUES
+        # ==============================================
 
         current_issues = current_evaluation.get(
             "issues",
-            [],
+            []
         )
 
         future_issues = future_evaluation.get(
             "issues",
-            [],
+            []
         )
 
-        all_issues = (
-            current_issues
-            + future_issues
-        )
+        all_issues = current_issues + future_issues
 
         issues_lower = [
             str(issue).lower()
@@ -708,20 +715,10 @@ class WaterQualityAgent:
         ]
 
         # ==============================================
-        # CRITICALITY DETECTION
+        # HARDWARE CONTROL CANDIDATES
         # ==============================================
 
         critical_controls = []
-
-        # LOW DISSOLVED OXYGEN
-        if any(
-            "low oxygen" in issue
-            or "low dissolved oxygen" in issue
-            for issue in issues_lower
-        ):
-            critical_controls.append(
-                ("Start Aerator", 1.0, "dissolved_oxygen")
-            )
 
         # HIGH TEMPERATURE
         if any(
@@ -729,16 +726,11 @@ class WaterQualityAgent:
             for issue in issues_lower
         ):
             critical_controls.append(
-                ("Start Cooling System", 1.0, "temperature_high")
-            )
-
-        # LOW TEMPERATURE
-        if any(
-            "low temperature" in issue
-            for issue in issues_lower
-        ):
-            critical_controls.append(
-                ("Start Heater", 1.0, "temperature_low")
+                (
+                    "Start Cooling System",
+                    1.0,
+                    "temperature_high",
+                )
             )
 
         # HIGH pH
@@ -746,8 +738,12 @@ class WaterQualityAgent:
             "high ph" in issue
             for issue in issues_lower
         ):
-           critical_controls.append(
-                ("Release Acid", 1.0, "pH_high")
+            critical_controls.append(
+                (
+                    "Release Acid",
+                    1.0,
+                    "pH_high",
+                )
             )
 
         # LOW pH
@@ -756,51 +752,67 @@ class WaterQualityAgent:
             for issue in issues_lower
         ):
             critical_controls.append(
-                ("Release Base", 1.0, "pH_low")
-            )
-
-        # HIGH TURBIDITY
-        if any(
-            "high turbidity" in issue
-            for issue in issues_lower
-        ):
-            critical_controls.append(
-                ("Start Water Pump", 1.0, "turbidity")
+                (
+                    "Release Base",
+                    1.0,
+                    "pH_low",
+                )
             )
 
         # ==============================================
-        # NO CRITICAL CONDITION
+        # SELECT HARDWARE CONTROL
         # ==============================================
 
-        if not critical_controls:
-
-            return {
-                "message": "No Action",
-                "time": 0,
-            }
+        critical_controls = [
+            control
+            for control in critical_controls
+            if control[0] in allowed_actions
+        ]
 
         # ==============================================
-        # SELECT MOST CRITICAL PARAMETER
+        # IF MULTIPLE CONTROLS EXIST
         # ==============================================
 
-        critical_controls.sort(
-            key=lambda x: x[1],
-            reverse=True,
-        )
+        if critical_controls:
 
-        selected_control = critical_controls[0][0]
-        selected_parameter = critical_controls[0][2]
+            critical_controls.sort(
+                key=lambda x: x[1],
+                reverse=True,
+            )
+
+            selected_control = critical_controls[0][0]
+            selected_parameter = critical_controls[0][2]
+
+        else:
+            # ==========================================
+            # DEFAULT CONTROL
+            # ==========================================
+            #
+            # No "No Action" command exists.
+            # Cooling is selected as the safe default
+            # hardware command.
+            #
+
+            selected_control = "Start Cooling System"
+            selected_parameter = "temperature_high"
+
+        # ==============================================
+        # CURRENT PARAMETER VALUES
+        # ==============================================
 
         parameter_values = {
-            "dissolved_oxygen": current_values["dissolved_oxygen"],
             "temperature_high": current_values["temperature"],
-            "temperature_low": current_values["temperature"],
             "pH_high": current_values["ph"],
             "pH_low": current_values["ph"],
-            "turbidity": current_values["turbidity"],
         }
 
-        selected_value = parameter_values[selected_parameter]
+        selected_value = parameter_values[
+            selected_parameter
+        ]
+
+        # ==============================================
+        # DYNAMIC CONTROL TIME
+        # ==============================================
 
         control_time = self.calculate_control_time(
             selected_parameter,
@@ -816,7 +828,7 @@ class WaterQualityAgent:
             "time": control_time,
         }
 
-        # ==================================================
+    # ==================================================
     # FISH RECOMMENDATION
     # ==================================================
 
@@ -829,8 +841,9 @@ class WaterQualityAgent:
         Evaluate fish suitability using current
         and predicted future water-quality values.
 
-        Only the highest-scoring suitable fish
-        is returned in recommended_fish.
+        All fish species classified as High or Medium
+        suitability are returned in recommended_fish,
+        sorted by suitability score.
         """
 
         # ==============================================
@@ -841,50 +854,50 @@ class WaterQualityAgent:
 
             "Tilapia": {
                 "ph": (6.5, 8.5),
-                "temperature": (24.0, 32.0),
-                "dissolved_oxygen": 3.0,
+                "temperature": (28.0, 32.0),
+                "dissolved_oxygen": 5.0,
                 "turbidity": (0.0, 25.0),
                 "tds": (100.0, 1000.0),
             },
 
             "Rohu": {
                 "ph": (6.5, 8.5),
-                "temperature": (22.0, 32.0),
-                "dissolved_oxygen": 4.0,
+                "temperature": (25.0, 32.0),
+                "dissolved_oxygen": 6.0,
                 "turbidity": (0.0, 25.0),
                 "tds": (100.0, 1000.0),
             },
 
             "Catla": {
                 "ph": (6.5, 8.5),
-                "temperature": (22.0, 32.0),
-                "dissolved_oxygen": 4.0,
+                "temperature": (25.0, 32.0),
+                "dissolved_oxygen": 6.0,
                 "turbidity": (0.0, 25.0),
                 "tds": (100.0, 1000.0),
             },
 
             "Mrigal": {
                 "ph": (6.5, 8.5),
-                "temperature": (22.0, 32.0),
-                "dissolved_oxygen": 4.0,
+                "temperature": (25.0, 32.0),
+                "dissolved_oxygen": 6.0,
                 "turbidity": (0.0, 25.0),
                 "tds": (100.0, 1000.0),
             },
 
             "Common Carp": {
                 "ph": (6.5, 9.0),
-                "temperature": (20.0, 30.0),
-                "dissolved_oxygen": 4.0,
+                "temperature": (20.0, 28.0),
+                "dissolved_oxygen": 5.0,
                 "turbidity": (0.0, 25.0),
                 "tds": (100.0, 1500.0),
             },
 
             "Pangasius": {
-                "ph": (6.5, 8.5),
-                "temperature": (24.0, 32.0),
-                "dissolved_oxygen": 3.0,
+                "ph": (6.5, 8.7),
+                "temperature": (26.0, 30.0),
+                "dissolved_oxygen": 5.0,
                 "turbidity": (0.0, 25.0),
-                "tds": (100.0, 1000.0),
+                "tds": (100.0, 1100.0),
             },
         }
 
@@ -1159,10 +1172,10 @@ class WaterQualityAgent:
             # CLASSIFY FISH
             # ==========================================
 
-            if suitability in (
-                "High",
-                "Medium",
-            ):
+            # Only fish with exactly 100% suitability
+            # are recommended.
+
+            if percentage == 100.0:
 
                 suitable_fish.append(
                     fish_result
@@ -1175,23 +1188,26 @@ class WaterQualityAgent:
                 )
 
         # ==============================================
-        # SELECT ONLY ONE FISH
+        # SORT ALL FISH RESULTS
         # ==============================================
 
-        if suitable_fish:
+        suitable_fish.sort(
+            key=lambda fish: fish["score"],
+            reverse=True,
+        )
 
-            suitable_fish.sort(
-                key=lambda fish: fish["score"],
-                reverse=True,
-            )
+        unsuitable_fish.sort(
+            key=lambda fish: fish["score"],
+            reverse=True,
+        )
 
-            recommended_fish = [
-                suitable_fish[0]
-            ]
+        # ==============================================
+        # RECOMMENDED FISH
+        # ==============================================
 
-        else:
-
-            recommended_fish = []
+        # Return every fish with exactly 100% suitability.
+        # The list is ordered from highest to lowest score.
+        recommended_fish = suitable_fish
 
         # ==============================================
         # OVERALL RECOMMENDATION
@@ -1200,9 +1216,10 @@ class WaterQualityAgent:
         if recommended_fish:
 
             overall_recommendation = (
-                "The evaluated water conditions "
-                "are suitable for freshwater "
-                "fish cultivation."
+                f"{len(recommended_fish)} fish species "
+                "are suitable for the evaluated "
+                "current and predicted water-quality "
+                "conditions."
             )
 
         else:
