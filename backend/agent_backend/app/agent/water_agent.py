@@ -604,12 +604,81 @@ class WaterQualityAgent:
 
         return recommendations
 
+    def calculate_control_time(
+        self,
+        parameter: str,
+        value: float
+    ) -> float:
+        """
+        Calculate hardware activation time based on
+        the severity of the current water-quality condition.
+
+        The returned value is in minutes because the hardware
+        interprets:
+
+            time * 60000 = milliseconds
+
+        Maximum hardware activation time = 15 seconds.
+        """
+
+        MIN_SECONDS = 2.0
+        MAX_SECONDS = 15.0
+
+        severity = 0.0
+
+        if parameter == "dissolved_oxygen":
+            if value < 5.0:
+                severity = (5.0 - value) / 5.0
+
+        elif parameter == "temperature_high":
+            if value > 32.0:
+                severity = (value - 32.0) / 32.0
+
+        elif parameter == "temperature_low":
+            if value < 20.0:
+                severity = (20.0 - value) / 20.0
+
+        elif parameter == "pH_high":
+            if value > 8.5:
+                severity = (value - 8.5) / 8.5
+
+        elif parameter == "pH_low":
+            if value < 6.5:
+                severity = (6.5 - value) / 6.5
+
+        elif parameter == "turbidity":
+            if value > 25.0:
+                severity = (value - 25.0) / 25.0
+
+        elif parameter == "tds":
+            if value > 500.0:
+                severity = (value - 500.0) / 500.0
+
+        # Keep severity safely between 0 and 1.
+        severity = max(0.0, min(severity, 1.0))
+
+        seconds = MIN_SECONDS + (
+            severity * (MAX_SECONDS - MIN_SECONDS)
+        )
+
+        # Absolute safety limit: 15 seconds.
+        seconds = max(
+            MIN_SECONDS,
+            min(seconds, MAX_SECONDS)
+        )
+
+        # Hardware expects minutes.
+        hardware_time = seconds / 60.0
+
+        return round(hardware_time, 4)
+
     # ==================================================
     # HARDWARE CONTROL
     # ==================================================
 
     def generate_hardware_control(
         self,
+        current_values: dict,
         current_evaluation: dict,
         future_evaluation: dict,
     ) -> dict:
@@ -651,7 +720,7 @@ class WaterQualityAgent:
             for issue in issues_lower
         ):
             critical_controls.append(
-                ("Start Aerator", 1.0)
+                ("Start Aerator", 1.0, "dissolved_oxygen", None)
             )
 
         # HIGH TEMPERATURE
@@ -1151,6 +1220,65 @@ class WaterQualityAgent:
         }
 
 
+    def validate_observation(
+        self,
+        ph: float,
+        turbidity: float,
+        temperature: float,
+        dissolved_oxygen: float,
+        tds: float
+    ):
+        """
+        Validate incoming water-quality sensor data before
+        sending it to the ML system.
+
+        Returns:
+            tuple[bool, list[str]]
+        """
+
+        values = {
+            "pH": ph,
+            "turbidity": turbidity,
+            "temperature": temperature,
+            "dissolved_oxygen": dissolved_oxygen,
+            "TDS": tds
+        }
+
+        errors = []
+
+        for name, value in values.items():
+            if value is None:
+                errors.append(f"{name} is missing")
+                continue
+
+            try:
+                value = float(value)
+            except (TypeError, ValueError):
+                errors.append(f"{name} is not numeric")
+                continue
+
+            if not np.isfinite(value):
+                errors.append(f"{name} is not finite")
+
+        # Physical / sensor operating limits
+        if ph < 0 or ph > 14:
+            errors.append("pH is outside valid range")
+
+        if turbidity < 0:
+            errors.append("Turbidity cannot be negative")
+
+        if temperature < -10 or temperature > 60:
+            errors.append("Temperature is outside valid range")
+
+        if dissolved_oxygen < 0 or dissolved_oxygen > 30:
+            errors.append("Dissolved oxygen is outside valid range")
+
+        if tds < 0:
+            errors.append("TDS cannot be negative")
+
+        return len(errors) == 0, errors
+
+
     # ==================================================
     # MAIN PROCESS
     # ==================================================
@@ -1182,6 +1310,22 @@ class WaterQualityAgent:
                 ↓
         Hardware Control
         """
+
+        valid, validation_errors = self.validate_observation(
+            ph,
+            turbidity,
+            temperature,
+            dissolved_oxygen,
+            tds
+        )
+
+        if not valid:
+            return {
+                "success": False,
+                "prediction_ready": False,
+                "error": "Invalid sensor observation",
+                "validation_errors": validation_errors
+            }
 
         observation = [
             ph,
@@ -1303,6 +1447,7 @@ class WaterQualityAgent:
 
         recommendations = (
             self.generate_recommendations(
+
                 current_evaluation,
                 future_evaluation,
             )
@@ -1314,6 +1459,7 @@ class WaterQualityAgent:
 
         hardware_control = (
             self.generate_hardware_control(
+                current_values,
                 current_evaluation,
                 future_evaluation,
             )
