@@ -152,13 +152,13 @@ class WaterQualityAgent:
         # TEMPERATURE
         # ==============================================
 
-        if temperature < 20:
+        if temperature < 17:
 
             issues.append(
                 "Low Temperature"
             )
 
-        elif temperature > 32:
+        elif temperature > 38:
 
             issues.append(
                 "High Temperature"
@@ -332,7 +332,7 @@ class WaterQualityAgent:
                 "Predicted Low pH"
             )
 
-        elif ph > 8.5:
+        elif ph > 7.2:
 
             issues.append(
                 "Predicted High pH"
@@ -352,13 +352,13 @@ class WaterQualityAgent:
         # FUTURE TEMPERATURE
         # ==============================================
 
-        if temperature < 20:
+        if temperature < 15:
 
             issues.append(
                 "Predicted Low Temperature"
             )
 
-        elif temperature > 32:
+        elif temperature > 38:
 
             issues.append(
                 "Predicted High Temperature"
@@ -1301,7 +1301,7 @@ class WaterQualityAgent:
         if turbidity < 0:
             errors.append("Turbidity cannot be negative")
 
-        if temperature < -10 or temperature > 60:
+        if temperature < 0 or temperature > 60:
             errors.append("Temperature is outside valid range")
 
         if dissolved_oxygen < 0 or dissolved_oxygen > 30:
