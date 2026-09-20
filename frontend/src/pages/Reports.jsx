@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import bgImage from "../assets/water.jpg";
 import {
-  clearLocalReports,
+  clearAllReports,
+  deleteReport,
   evaluateWaterQuality,
   fetchLiveReadings,
   getReports,
@@ -149,7 +150,7 @@ function CurrentReading() {
 }
 
 /** One saved test, rendered as its own numbered card with a metric grid. */
-function ReadingCard({ index, report, open, onToggle }) {
+function ReadingCard({ index, report, open, onToggle, onDelete }) {
   const avg = {};
   METRIC_KEYS.forEach((k) => {
     avg[k] = report.ranges?.[k]?.avg ?? 0;
@@ -166,7 +167,17 @@ function ReadingCard({ index, report, open, onToggle }) {
             Duration {Math.floor((report.durationSec || 0) / 60)}m {(report.durationSec || 0) % 60}s
           </span>
         </div>
-        <span className={"result-badge " + (report.result || "").toLowerCase()}>{report.result}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span className={"result-badge " + (report.result || "").toLowerCase()}>{report.result}</span>
+          <button
+            className="clear-history-btn"
+            onClick={() => onDelete(report.id)}
+            title="Delete this report"
+            type="button"
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       <MetricGrid values={avg} />
@@ -228,10 +239,19 @@ function WaterReports() {
 
   const toggleDetail = (id) => setOpenId((prev) => (prev === id ? null : id));
 
-  const handleClear = () => {
-    if (!window.confirm("Clear all locally saved test reports from this browser? This can't be undone.")) return;
-    clearLocalReports();
-    getReports().then(setState);
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this report? This can't be undone.")) return;
+    await deleteReport(id);
+    setState((prev) => ({ ...prev, items: prev.items.filter((r) => r.id !== id) }));
+    if (openId === id) setOpenId(null);
+  };
+
+  const handleClearAll = async () => {
+    if (!window.confirm("Delete every saved test report — local and backend? This can't be undone.")) return;
+    await clearAllReports();
+    const refreshed = await getReports();
+    setState(refreshed);
+    setOpenId(null);
   };
 
   if (state.items.length === 0) {
@@ -249,7 +269,7 @@ function WaterReports() {
         <span className="reports-count">
           {state.items.length} saved {state.items.length === 1 ? "report" : "reports"}
         </span>
-        <button className="clear-history-btn" onClick={handleClear}>Clear local history</button>
+        <button className="clear-history-btn" onClick={handleClearAll}>Clear all reports</button>
       </div>
 
       <div className="reading-list">
@@ -260,6 +280,7 @@ function WaterReports() {
             report={r}
             open={openId === r.id}
             onToggle={() => toggleDetail(r.id)}
+            onDelete={handleDelete}
           />
         ))}
       </div>

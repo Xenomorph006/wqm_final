@@ -118,6 +118,29 @@ export async function fetchAgentData() {
     parameters: future_water_quality?.parameters || null,
   };
 }
+/**
+ * Delete a single report, by its client-side `id`. Removes it from
+ * localStorage immediately (so the UI updates even offline) and tries to
+ * delete it from the backend too (best-effort — local removal always wins).
+ */
+export async function deleteReport(id) {
+  const local = getLocalReports();
+  const updated = local.filter((r) => r.id !== id);
+  localStorage.setItem(REPORTS_KEY, JSON.stringify(updated));
+
+  await safeFetch(`/api/reports/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+  return updated;
+}
+
+/**
+ * Wipes every report — both the local browser cache and the backend's
+ * Mongo collection (best-effort; local wipe always succeeds even offline).
+ */
+export async function clearAllReports() {
+  clearLocalReports();
+  await safeFetch("/api/reports", { method: "DELETE" });
+}
 
 // Maps the agent's { pH, turbidity, temperature, dissolved_oxygen, TDS }
 // shape onto the app's { ph, turbidity, temperature, dissolvedOxygen, tds }
