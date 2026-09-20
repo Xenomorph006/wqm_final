@@ -720,7 +720,7 @@ class WaterQualityAgent:
             for issue in issues_lower
         ):
             critical_controls.append(
-                ("Start Aerator", 1.0, "dissolved_oxygen", None)
+                ("Start Aerator", 1.0, "dissolved_oxygen")
             )
 
         # HIGH TEMPERATURE
@@ -729,7 +729,7 @@ class WaterQualityAgent:
             for issue in issues_lower
         ):
             critical_controls.append(
-                ("Start Cooling System", 1.0)
+                ("Start Cooling System", 1.0, "temperature_high")
             )
 
         # LOW TEMPERATURE
@@ -738,7 +738,7 @@ class WaterQualityAgent:
             for issue in issues_lower
         ):
             critical_controls.append(
-                ("Start Heater", 1.0)
+                ("Start Heater", 1.0, "temperature_low")
             )
 
         # HIGH pH
@@ -746,8 +746,8 @@ class WaterQualityAgent:
             "high ph" in issue
             for issue in issues_lower
         ):
-            critical_controls.append(
-                ("Release Acid", 1.0)
+           critical_controls.append(
+                ("Release Acid", 1.0, "pH_high")
             )
 
         # LOW pH
@@ -756,7 +756,7 @@ class WaterQualityAgent:
             for issue in issues_lower
         ):
             critical_controls.append(
-                ("Release Base", 1.0)
+                ("Release Base", 1.0, "pH_low")
             )
 
         # HIGH TURBIDITY
@@ -765,7 +765,7 @@ class WaterQualityAgent:
             for issue in issues_lower
         ):
             critical_controls.append(
-                ("Start Water Pump", 1.0)
+                ("Start Water Pump", 1.0, "turbidity")
             )
 
         # ==============================================
@@ -789,6 +789,23 @@ class WaterQualityAgent:
         )
 
         selected_control = critical_controls[0][0]
+        selected_parameter = critical_controls[0][2]
+
+        parameter_values = {
+            "dissolved_oxygen": current_values["dissolved_oxygen"],
+            "temperature_high": current_values["temperature"],
+            "temperature_low": current_values["temperature"],
+            "pH_high": current_values["ph"],
+            "pH_low": current_values["ph"],
+            "turbidity": current_values["turbidity"],
+        }
+
+        selected_value = parameter_values[selected_parameter]
+
+        control_time = self.calculate_control_time(
+            selected_parameter,
+            selected_value,
+        )
 
         # ==============================================
         # FINAL HARDWARE RESPONSE
@@ -796,7 +813,7 @@ class WaterQualityAgent:
 
         return {
             "message": selected_control,
-            "time": self.CONTROL_TIME,
+            "time": control_time,
         }
 
         # ==================================================
@@ -1285,18 +1302,20 @@ class WaterQualityAgent:
 
     def process_observation(
         self,
-            ph: float,
-            turbidity: float,
-            temperature: float,
-            dissolved_oxygen: float,
-            tds: float,
-        ) -> dict:
+        ph: float,
+        turbidity: float,
+        temperature: float,
+        dissolved_oxygen: float,
+        tds: float,
+    ) -> dict:
         """
         Main Agent entry point.
 
         Flow:
 
         Sensor Observation
+                ↓
+        Validation
                 ↓
         Current Water Evaluation
                 ↓
@@ -1309,14 +1328,22 @@ class WaterQualityAgent:
         Recommendations
                 ↓
         Hardware Control
+                ↓
+        Fish Recommendation
+                ↓
+        Final Response
         """
+
+        # ==============================================
+        # SENSOR VALIDATION
+        # ==============================================
 
         valid, validation_errors = self.validate_observation(
             ph,
             turbidity,
             temperature,
             dissolved_oxygen,
-            tds
+            tds,
         )
 
         if not valid:
@@ -1324,8 +1351,20 @@ class WaterQualityAgent:
                 "success": False,
                 "prediction_ready": False,
                 "error": "Invalid sensor observation",
-                "validation_errors": validation_errors
+                "validation_errors": validation_errors,
             }
+
+        # ==============================================
+        # CURRENT VALUES
+        # ==============================================
+
+        current_values = {
+            "ph": ph,
+            "turbidity": turbidity,
+            "temperature": temperature,
+            "dissolved_oxygen": dissolved_oxygen,
+            "tds": tds,
+        }
 
         observation = [
             ph,
@@ -1339,159 +1378,149 @@ class WaterQualityAgent:
         # CURRENT WATER QUALITY
         # ==============================================
 
-        current_evaluation = (
-            self.evaluate_current_water_quality(
-                observation
-            )
+        current_evaluation = self.evaluate_current_water_quality(
+            observation
         )
 
         # ==============================================
         # ML PROCESSING
         # ==============================================
 
-        ml_result = (
-            self.ml_service.process_observation(
-                ph=ph,
-                turbidity=turbidity,
-                temperature=temperature,
-                dissolved_oxygen=dissolved_oxygen,
-                tds=tds,
-            )
+        ml_result = self.ml_service.process_observation(
+            ph=ph,
+            turbidity=turbidity,
+            temperature=temperature,
+            dissolved_oxygen=dissolved_oxygen,
+            tds=tds,
         )
 
         # ==============================================
         # ML FAILURE
         # ==============================================
 
-        if not ml_result.get(
-            "success",
-            False,
-        ):
+        if not ml_result.get("success", False):
 
             return {
-
-                "success":
-                    False,
-
-                "error":
-                    ml_result.get(
-                        "error",
-                        "ML processing failed",
-                    ),
-
-                "current_water_quality":
-                    current_evaluation,
-
+                "success": False,
+                "error": ml_result.get(
+                    "error",
+                    "ML processing failed",
+                ),
+                "current_water_quality": current_evaluation,
             }
 
-        prediction_result = (
-            ml_result.get(
-                "prediction"
-            )
-        )
+        prediction_result = ml_result.get("prediction")
 
         # ==============================================
-        # PREDICTION NOT READY
+        # PREDICTION STATUS
         # ==============================================
 
-        if prediction_result is None:
-
-            return {
-
-                "success":
-                    True,
-
-                "prediction_ready":
-                    False,
-
-                "current_water_quality":
-                    current_evaluation,
-
-                "hardware_control": {
-
-                    "message":
-                        "No Action",
-
-                    "time":
-                        0,
-
-                },
-
-                "ml": {
-
-                    "buffer":
-                        ml_result.get(
-                            "buffer"
-                        ),
-
-                    "prediction":
-                        None,
-
-                },
-
-            }
+        prediction_ready = prediction_result is not None
 
         # ==============================================
         # FUTURE WATER QUALITY
         # ==============================================
 
-        future_evaluation = (
-            self.evaluate_future_water_quality(
-                prediction_result
+        if prediction_ready:
+
+            future_evaluation = (
+                self.evaluate_future_water_quality(
+                    prediction_result
+                )
             )
-        )
+
+        else:
+
+            future_evaluation = {
+                "issues": []
+            }
 
         # ==============================================
         # RECOMMENDATIONS
         # ==============================================
 
-        recommendations = (
-            self.generate_recommendations(
-
-                current_evaluation,
-                future_evaluation,
-            )
+        recommendations = self.generate_recommendations(
+            current_evaluation,
+            future_evaluation,
         )
 
         # ==============================================
         # HARDWARE CONTROL
         # ==============================================
 
-        hardware_control = (
-            self.generate_hardware_control(
-                current_values,
-                current_evaluation,
-                future_evaluation,
-            )
+        hardware_control = self.generate_hardware_control(
+            current_values,
+            current_evaluation,
+            future_evaluation,
         )
 
-        fish_recommendation = (
-            self.generate_fish_recommendation(
-                current_values={
-                    "ph": ph,
-                    "turbidity": turbidity,
-                    "temperature": temperature,
-                    "dissolved_oxygen": dissolved_oxygen,
-                    "tds": tds,
-                },
-                future_evaluation=future_evaluation,
+        # ==============================================
+        # FISH RECOMMENDATION
+        # ==============================================
+
+        if prediction_ready:
+            fish_recommendation = (
+                self.generate_fish_recommendation(
+                    current_values=current_values,
+                    future_evaluation=future_evaluation,
+                )
             )
-        )
+        else:
+            fish_recommendation = {
+                "current_water_quality": current_evaluation,
+                "predicted_water_quality": {},
+                "recommended_fish": [],
+                "unsuitable_fish": [],
+                "overall_recommendation": (
+                    "Fish recommendation unavailable until "
+                    "prediction is ready."
+                ),
+            }
+
+        # ==============================================
+        # PREDICTION NOT READY
+        # ==============================================
+
+        if not prediction_ready:
+
+            return {
+                "success": True,
+                "prediction_ready": False,
+
+                "current_water_quality":
+                    current_evaluation,
+
+                "future_water_quality":
+                    future_evaluation,
+
+                "recommendations":
+                    recommendations,
+
+                "hardware_control":
+                    hardware_control,
+
+                "fish_recommendation":
+                    fish_recommendation,
+
+                "ml": {
+                    "buffer":
+                        ml_result.get("buffer"),
+
+                    "prediction":
+                        None,
+                },
+            }
 
         # ==============================================
         # JSON SAFE ML DATA
         # ==============================================
 
         prediction_data = np.asarray(
-            prediction_result[
-                "prediction"
-            ]
+            prediction_result["prediction"]
         ).tolist()
 
         confidence_data = np.asarray(
-            prediction_result[
-                "confidence"
-            ]
+            prediction_result["confidence"]
         ).tolist()
 
         # ==============================================
@@ -1499,12 +1528,9 @@ class WaterQualityAgent:
         # ==============================================
 
         return {
+            "success": True,
 
-            "success":
-                True,
-
-            "prediction_ready":
-                True,
+            "prediction_ready": True,
 
             "current_water_quality":
                 current_evaluation,
@@ -1518,25 +1544,19 @@ class WaterQualityAgent:
             "hardware_control":
                 hardware_control,
 
-            "fish_recommendation": fish_recommendation,
+            "fish_recommendation":
+                fish_recommendation,
 
             "ml": {
-
                 "buffer":
-                    ml_result.get(
-                        "buffer"
-                    ),
+                    ml_result.get("buffer"),
 
                 "prediction": {
-
                     "prediction":
                         prediction_data,
 
                     "confidence":
                         confidence_data,
-
                 },
-
             },
-
         }
