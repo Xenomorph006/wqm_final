@@ -713,15 +713,15 @@ class WaterQualityAgent:
 
         critical_controls = []
 
-        # LOW DISSOLVED OXYGEN
-        if any(
-            "low oxygen" in issue
-            or "low dissolved oxygen" in issue
-            for issue in issues_lower
-        ):
-            critical_controls.append(
-                ("Start Aerator", 1.0, "dissolved_oxygen")
-            )
+        # # LOW DISSOLVED OXYGEN
+        # if any(
+        #     "low oxygen" in issue
+        #     or "low dissolved oxygen" in issue
+        #     for issue in issues_lower
+        # ):
+        #     critical_controls.append(
+        #         ("Start Aerator", 1.0, "dissolved_oxygen")
+        #     )
 
         # HIGH TEMPERATURE
         if any(
@@ -732,14 +732,14 @@ class WaterQualityAgent:
                 ("Start Cooling System", 1.0, "temperature_high")
             )
 
-        # LOW TEMPERATURE
-        if any(
-            "low temperature" in issue
-            for issue in issues_lower
-        ):
-            critical_controls.append(
-                ("Start Heater", 1.0, "temperature_low")
-            )
+        # # LOW TEMPERATURE
+        # if any(
+        #     "low temperature" in issue
+        #     for issue in issues_lower
+        # ):
+        #     critical_controls.append(
+        #         ("Start Heater", 1.0, "temperature_low")
+        #     )
 
         # HIGH pH
         if any(
@@ -760,13 +760,13 @@ class WaterQualityAgent:
             )
 
         # HIGH TURBIDITY
-        if any(
-            "high turbidity" in issue
-            for issue in issues_lower
-        ):
-            critical_controls.append(
-                ("Start Water Pump", 1.0, "turbidity")
-            )
+        # if any(
+        #     "high turbidity" in issue
+        #     for issue in issues_lower
+        # ):
+        #     critical_controls.append(
+        #         ("Start Water Pump", 1.0, "turbidity")
+        #     )
 
         # ==============================================
         # NO CRITICAL CONDITION
