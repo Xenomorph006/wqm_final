@@ -5,6 +5,7 @@ import { collectAndForward, getLatestReading } from "./controllers/Realtimecontr
 import { startTest } from "./controllers/testController.js";
 import { getReports, getReportById, createReport, deleteReport, deleteAllReports } from "./controllers/reportController.js";
 import { getLatestAgentResponse } from "./controllers/agentController.js";
+import { startHardwareLoop, getHardwareStatus } from "./controllers/hardwareController.js";
 import { connectDB } from "./config/db.js";
 dotenv.config();
 
@@ -79,6 +80,11 @@ app.post("/api/collect", async (req, res) => {
 
 app.post("/api/tests/start", startTest);
 
+// Status of the ESP32 hardware controller loop
+app.get("/api/hardware/status", (req, res) => {
+    res.json({ success: true, ...getHardwareStatus() });
+});
+
 app.get("/api/reports", getReports);
 app.get("/api/reports/:id", getReportById);
 app.post("/api/reports", createReport);
@@ -104,6 +110,7 @@ async function start() {
                 });
             }, POLL_INTERVAL_MS);
         }
+        startHardwareLoop(PORT);
     });
 }
 
