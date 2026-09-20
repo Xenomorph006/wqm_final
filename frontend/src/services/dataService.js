@@ -7,16 +7,16 @@
  * Actual endpoint: GET /api/data
  * Response format: { success: true, data: { temperature, tds, ph, turbidity, dissolved_oxygen } }
  *
- * Also reads the ML agent's predictions (real per-parameter confidence)
- * from GET /api/agentdata, which serves the latest document the agent
- * wrote to the `agent_responses` Mongo collection.
+ * Also reads the ML agent's predictions (real per-parameter confidence,
+ * future water quality, and fish compatibility) from GET /api/agentdata,
+ * which serves the latest document the agent wrote to the
+ * `agent_responses` Mongo collection.
  *
  * Offline-first: if backend unreachable, returns ZERO_METRICS so UI never crashes.
  * Reports always persist to localStorage; synced to backend when reachable.
  * -----------------------------------------------------------------------
  */
-
-const API_URL = import.meta.env?.VITE_API_URL || "http://192.168.1.9:4000";
+const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.3:4000";
 const REPORTS_KEY = "wqs_reports_v1";
 const TIMEOUT_MS = 3500;
 
@@ -99,23 +99,24 @@ export async function fetchLiveReadings() {
 }
 
 /**
- * Latest ML prediction from the agent: per-parameter confidence + predicted
- * values, read from GET /api/agentdata (backed by the `agent_responses`
- * Mongo collection). Returns connected:false if the agent hasn't posted
- * anything yet or the backend is unreachable.
+ * Latest ML prediction from the agent: per-parameter confidence, predicted
+ * values, and fish compatibility, read from GET /api/agentdata (backed by
+ * the `agent_responses` Mongo collection). Returns connected:false if the
+ * agent hasn't posted anything yet or the backend is unreachable.
  */
 export async function fetchAgentData() {
   const response = await safeFetch("/api/agentdata", { method: "GET" });
   if (!response || !response.success || !response.data) {
-    return { connected: false, predictionReady: false, parameters: null };
+    return { connected: false, predictionReady: false, parameters: null, fishRecommendation: null };
   }
   // Confidence lives under future_water_quality.parameters — ml.prediction
   // only holds raw unlabelled arrays, and ml.parameters doesn't exist.
-  const { future_water_quality, prediction_ready } = response.data;
+  const { future_water_quality, prediction_ready, fish_recommendation } = response.data;
   return {
     connected: true,
     predictionReady: !!prediction_ready,
     parameters: future_water_quality?.parameters || null,
+    fishRecommendation: fish_recommendation || null,
   };
 }
 /**
@@ -158,7 +159,7 @@ function mapAgentConfidence(parameters) {
 
 /**
  * Dashboard summary: total tests, quality score, confidence per parameter,
- * recommendations, and issues.
+ * recommendations, issues, and fish compatibility.
  *
  * Confidence prefers the ML agent's real per-parameter confidence
  * (GET /api/agentdata); falls back to the heuristic spread-based estimate
@@ -166,17 +167,18 @@ function mapAgentConfidence(parameters) {
  *
  * When the sensor backend is unreachable, derives best-effort snapshot from
  * most recent locally saved test. With no local history, everything holds
- * at zero.
+ * at zero. Fish compatibility always comes from the agent regardless of
+ * sensor-bridge status, since it's independent of /api/data.
  */
 export async function fetchDashboardStats() {
   const data = await safeFetch("/api/data", { method: "GET" });
+  const agent = await fetchAgentData();
 
   if (data && data.success && data.data) {
     const { temperature, tds, ph, turbidity, dissolved_oxygen } = data.data;
     const evaluation = evaluateWaterQuality({ ph, turbidity, temperature, dissolvedOxygen: dissolved_oxygen, tds });
     const recommendations = generateRecommendations(evaluation);
 
-    const agent = await fetchAgentData();
     const confidence =
       mapAgentConfidence(agent.parameters) ||
       estimateConfidenceMap({
@@ -194,6 +196,7 @@ export async function fetchDashboardStats() {
       confidence,
       recommendations,
       issues: evaluation.issues,
+      fishRecommendation: agent.fishRecommendation,
     };
   }
 
@@ -209,6 +212,7 @@ export async function fetchDashboardStats() {
       confidence: ZERO_CONFIDENCE,
       recommendations: [],
       issues: [],
+      fishRecommendation: agent.fishRecommendation,
     };
   }
 
@@ -222,6 +226,7 @@ export async function fetchDashboardStats() {
     confidence: latest.confidence || ZERO_CONFIDENCE,
     recommendations: latest.issues && latest.issues.length > 0 ? latest.recommendations || [] : [],
     issues: latest.issues || [],
+    fishRecommendation: agent.fishRecommendation,
   };
 }
 

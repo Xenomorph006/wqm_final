@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import bgImage from "../assets/water.jpg";
 import LiveChart from "../components/LiveChart";
+
+import FishCompatibility from "../components/FishCompatibility";
 import { useAnimatedValue } from "../hooks/useAnimatedValue";
 import {
   fetchDashboardStats,
@@ -22,10 +24,14 @@ const SIDEBAR_LINKS = [
 
 function StatCard({ label, value, suffix = "", tone = "" }) {
   const animated = useAnimatedValue(value);
+  // Base the decimal-place decision on the animated value itself, not the
+  // target `value` prop — otherwise the digit count flickers mid-animation
+  // whenever animated and value straddle an integer/100 boundary.
+  const decimals = animated % 1 === 0 && animated < 100 ? 0 : 1;
   return (
     <div className={"card" + (tone ? ` tone-${tone}` : "")}>
       <h3>
-        {animated.toFixed(value % 1 === 0 && value < 100 ? 0 : 1)}
+        {animated.toFixed(decimals)}
         {suffix}
       </h3>
       <p>{label}</p>
@@ -65,17 +71,28 @@ function RecommendationFeed({ connected, recommendations }) {
   const items = recommendations || [];
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
+  // Tracks the pending fade-out -> advance timeout so it can be cancelled on
+  // unmount. Without this, the timeout fires after unmount and calls
+  // setState on a dead component (React warning + a flash of stale content).
+  const fadeTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (items.length <= 1) return undefined;
     const cycle = setInterval(() => {
       setVisible(false);
-      setTimeout(() => {
+      fadeTimeoutRef.current = setTimeout(() => {
         setIndex((i) => (i + 1) % items.length);
         setVisible(true);
+        fadeTimeoutRef.current = null;
       }, 260);
     }, 4200);
-    return () => clearInterval(cycle);
+    return () => {
+      clearInterval(cycle);
+      if (fadeTimeoutRef.current) {
+        clearTimeout(fadeTimeoutRef.current);
+        fadeTimeoutRef.current = null;
+      }
+    };
   }, [items.length]);
 
   if (items.length === 0) {
@@ -86,6 +103,10 @@ function RecommendationFeed({ connected, recommendations }) {
       </div>
     );
   }
+
+  // `items` can shrink (e.g. issues resolve) while `index` still points past
+  // the new end — clamp so we never read `items[index]` as undefined.
+  const safeIndex = index < items.length ? index : 0;
 
   return (
     <div className="recommend-panel recommend-panel--alert">
@@ -99,13 +120,13 @@ function RecommendationFeed({ connected, recommendations }) {
 
       <div className={"recommend-toast" + (visible ? " show" : "")}>
         <span className="recommend-dot" />
-        <span>{items[index]}</span>
+        <span>{items[safeIndex]}</span>
       </div>
 
       {items.length > 1 && (
         <div className="recommend-dots">
           {items.map((_, i) => (
-            <span key={i} className={"recommend-progress" + (i === index ? " active" : "")} />
+            <span key={i} className={"recommend-progress" + (i === safeIndex ? " active" : "")} />
           ))}
         </div>
       )}
@@ -124,24 +145,39 @@ function Dashboard() {
   });
   const [series, setSeries] = useState([]);
   const [predictions, setPredictions] = useState({ connected: false, items: [] });
+  
 
   useEffect(() => {
     let cancelled = false;
 
     const poll = async () => {
-      // No fetchLiveReadings() call here anymore — TestSessionProvider,
-      // mounted at the app root, polls continuously regardless of which
-      // page is active, so the buffer fetchHistorySeries() reads from is
-      // already populated.
-      const [s, h, p] = await Promise.all([
-        fetchDashboardStats(),
-        fetchHistorySeries(30),
-        fetchRecentPredictions(6),
-      ]);
-      if (cancelled) return;
-      setStats(s);
-      setSeries(h.series);
-      setPredictions(p);
+      // fetchHistorySeries() reads from the live buffer — fetchLiveReadings()
+      // is the only thing that writes to it. Nothing on this page called it,
+      // so the chart was always empty regardless of backend status. Await it
+      // first so this cycle's point is in the buffer before history is read.
+      try {
+        await fetchLiveReadings();
+
+        const [s, h, p] = await Promise.all([
+          fetchDashboardStats(),
+          fetchHistorySeries(30),
+          fetchRecentPredictions(6),
+        ]);
+        if (cancelled) return;
+        setStats(s);
+        setSeries(h.series || []);
+        // Defensively normalize: never trust the API to always include
+        // `items`, or a bad/failed response would crash the whole page
+        // at `predictions.items.length` below.
+        setPredictions({
+          connected: !!p?.connected,
+          items: Array.isArray(p?.items) ? p.items : [],
+        });
+        
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Dashboard poll failed:", err);
+      }
     };
 
     poll();
@@ -151,27 +187,13 @@ function Dashboard() {
       clearInterval(interval);
     };
   }, []);
+
   return (
     <div className="dashboard" style={{ backgroundImage: `url(${bgImage})` }}>
       <div className="overlay"></div>
 
       <div className="dashboard-content">
-        <div className="sidebar">
-          <h2 className="logo">💧 WQS</h2>
-          <ul>
-            {SIDEBAR_LINKS.map((link) => (
-              <li key={link.to}>
-                <NavLink
-                  to={link.to}
-                  className={({ isActive }) => (isActive ? "active" : "")}
-                >
-                  <span className="side-icon">{link.icon}</span>
-                  {link.label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </div>
+        
 
         <div className="main">
           <div className="topbar">
@@ -205,6 +227,8 @@ function Dashboard() {
             <h3>Water Quality — Live Stream</h3>
             <LiveChart series={series} connected={stats.connected} />
           </div>
+
+          <FishCompatibility data={stats.fishRecommendation} />
 
           <div className="table-section">
             <div className="table-head">
@@ -251,6 +275,5 @@ function Dashboard() {
     </div>
   );
 }
-
 
 export default Dashboard;
